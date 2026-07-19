@@ -27,9 +27,12 @@ jobs:
 
       - name: Run Forge fmt
         run: forge fmt --check
+        working-directory: ./contracts
 
       - name: Run Forge build
         run: forge build --sizes
+        working-directory: ./contracts
 
       - name: Run Forge tests
         run: forge test -vvv
+        working-directory: ./contracts
