@@ -5,4 +5,6 @@ contracts/cache/
 contracts/broadcast/
 *.log
 dist/
-contracts/lib/
+
+# macOS
+.DS_Store
