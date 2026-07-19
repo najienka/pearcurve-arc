@@ -1,0 +1,12 @@
+{
+  "name": "pearcurve-arc",
+  "private": true,
+  "workspaces": ["demo", "solver"],
+  "scripts": {
+    "demo": "npm --workspace demo run demo",
+    "solver": "npm --workspace solver run start",
+    "build:contracts": "cd contracts && forge build",
+    "test:contracts": "cd contracts && forge test -vvv",
+    "deploy:arc": "cd contracts && forge script script/Deploy.s.sol --rpc-url arc_testnet --broadcast --verify"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "solver",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "viem": "^2.21.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "ts-node": "^10.9.2",
+    "@types/node": "^20.14.0"
+  }
+}
