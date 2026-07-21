@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: BUSL-1.1
+pragma solidity ^0.8.24;
+
+/// @notice Shared structs and EIP-712 type hashes for Pearcurve intents.
+/// @dev Intents are always signed off-chain (free, instant, zero gas until matched) and
+///      converge on IntentSettlement.matchIntents(). TYPEHASH must list exactly the fields
+///      that `hash()` encodes — nothing more.
+library IntentTypes {
+    struct LenderIntent {
+        address owner; // EOA or vault contract (EIP-1271)
+        address loanToken;
+        address collateralToken;
+        uint256 minPrincipal;
+        uint256 maxPrincipal;
+        uint256 minRate; // bps
+        uint256 minDuration; // seconds
+        uint256 maxDuration; // seconds
+        uint256 originationLtvBps; // max LTV at origination
+        uint256 liquidationLtvBps; // LTV that triggers liquidation
+        uint256 earlyRepaymentFeeBps; // % of REMAINING interest, 0-10000. repay() is NEVER
+        // blocked outright; 10000 = borrower can still repay
+        // early but pays full remaining interest as if held
+        // to maturity, the economic equivalent of a block.
+        bool allowPartialFill;
+        uint256 maxPerBorrowerAddress; // 0 = unlimited
+        uint256 expiry;
+        uint256 nonce;
+    }
+
+    struct BorrowerIntent {
+        address owner;
+        address loanToken;
+        address collateralToken;
+        uint256 principal;
+        uint256 maxRate; // bps
+        uint256 duration; // seconds
+        uint256 maxCollateralAmount; // 0 = unlimited
+        uint256 solverTipBps; // paid by borrower, in `loanToken`
+        uint256 expiry;
+        uint256 nonce;
+    }
+
+    bytes32 internal constant LENDER_INTENT_TYPEHASH = keccak256(
+        "LenderIntent(address owner,address loanToken,address collateralToken,"
+        "uint256 minPrincipal,uint256 maxPrincipal,uint256 minRate,"
+        "uint256 minDuration,uint256 maxDuration,uint256 originationLtvBps,"
+        "uint256 liquidationLtvBps,uint256 earlyRepaymentFeeBps,bool allowPartialFill,"
+        "uint256 maxPerBorrowerAddress,uint256 expiry,uint256 nonce)"
+    );
+
+    bytes32 internal constant BORROWER_INTENT_TYPEHASH = keccak256(
+        "BorrowerIntent(address owner,address loanToken,address collateralToken,"
+        "uint256 principal,uint256 maxRate,uint256 duration,uint256 maxCollateralAmount,"
+        "uint256 solverTipBps,uint256 expiry,uint256 nonce)"
+    );
+
+    function hash(LenderIntent memory i) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                LENDER_INTENT_TYPEHASH,
+                i.owner,
+                i.loanToken,
+                i.collateralToken,
+                i.minPrincipal,
+                i.maxPrincipal,
+                i.minRate,
+                i.minDuration,
+                i.maxDuration,
+                i.originationLtvBps,
+                i.liquidationLtvBps,
+                i.earlyRepaymentFeeBps,
+                i.allowPartialFill,
+                i.maxPerBorrowerAddress,
+                i.expiry,
+                i.nonce
+            )
+        );
+    }
+
+    function hash(BorrowerIntent memory i) internal pure returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                BORROWER_INTENT_TYPEHASH,
+                i.owner,
+                i.loanToken,
+                i.collateralToken,
+                i.principal,
+                i.maxRate,
+                i.duration,
+                i.maxCollateralAmount,
+                i.solverTipBps,
+                i.expiry,
+                i.nonce
+            )
+        );
+    }
+}
