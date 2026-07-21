@@ -47,7 +47,7 @@ contract LoanManager {
         bool defaulted;
     }
 
-    mapping(uint256 => Agreement) public agreements;
+    mapping(uint256 => Agreement) internal agreements;
     uint256 public nextAgreementId;
 
     event AgreementCreated(

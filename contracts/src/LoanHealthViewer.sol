@@ -23,7 +23,7 @@ contract LoanHealthViewer is ILoanHealthViewer {
     }
 
     /// @inheritdoc ILoanHealthViewer
-    function getLoanHealth(uint256 agreementId) public view returns (LoanHealth memory h) {
+    function getLoanHealth(uint256 agreementId) external view returns (LoanHealth memory h) {
         LoanManager lm = LoanManager(loanManager);
         LoanManager.Agreement memory a = lm.getAgreement(agreementId);
 
@@ -54,15 +54,5 @@ contract LoanHealthViewer is ILoanHealthViewer {
         h.maxDebt = h.collateralValueInLoanToken * a.liquidationLtvBps / BPS;
         h.healthFactor = h.debtOwed == 0 ? type(uint256).max : h.maxDebt * 1e18 / h.debtOwed;
         h.isLiquidatable = !h.isPastMaturity && h.debtOwed > h.maxDebt;
-    }
-
-    /// @inheritdoc ILoanHealthViewer
-    function healthFactor(uint256 agreementId) external view returns (uint256) {
-        return getLoanHealth(agreementId).healthFactor;
-    }
-
-    /// @inheritdoc ILoanHealthViewer
-    function isLiquidatable(uint256 agreementId) external view returns (bool) {
-        return getLoanHealth(agreementId).isLiquidatable;
     }
 }

@@ -31,8 +31,4 @@ interface ILoanHealthViewer {
     function loanManager() external view returns (address);
 
     function getLoanHealth(uint256 agreementId) external view returns (LoanHealth memory h);
-
-    function healthFactor(uint256 agreementId) external view returns (uint256);
-
-    function isLiquidatable(uint256 agreementId) external view returns (bool);
 }
