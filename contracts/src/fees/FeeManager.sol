@@ -21,11 +21,16 @@ contract FeeManager is IFeeManager, Governable {
     uint256 public constant MAX_INTEREST_FEE_BPS = 2000; // 20%
     uint256 public constant MAX_EARLY_REPAYMENT_FEE_BPS = 10000; // 100% of remaining interest
 
+    /// @inheritdoc IFeeManager
     address public feeRecipient;
 
+    /// @inheritdoc IFeeManager
     uint256 public originationFeeBps;
+    /// @inheritdoc IFeeManager
     uint256 public maxSolverTipBps;
+    /// @inheritdoc IFeeManager
     uint256 public interestFeeBps;
+    /// @inheritdoc IFeeManager
     uint256 public maxEarlyRepaymentFeeBps;
 
     event FeeRecipientUpdated(address indexed feeRecipient);

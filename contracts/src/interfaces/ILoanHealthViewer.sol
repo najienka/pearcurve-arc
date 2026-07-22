@@ -28,7 +28,11 @@ struct LoanHealth {
 /// @title ILoanHealthViewer
 /// @notice Read-only loan health metrics for borrower-facing UIs and liquidation keepers.
 interface ILoanHealthViewer {
+    /// @notice The `LoanManager` whose agreements this viewer reads.
     function loanManager() external view returns (address);
 
+    /// @notice Live health snapshot for `agreementId`, mirroring `LoanManager.liquidate()` math.
+    /// @param agreementId The loan agreement to inspect.
+    /// @return h Populated health fields; `healthFactor` is `type(uint256).max` when not applicable.
     function getLoanHealth(uint256 agreementId) external view returns (LoanHealth memory h);
 }

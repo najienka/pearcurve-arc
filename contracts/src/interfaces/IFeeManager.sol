@@ -7,6 +7,7 @@ pragma solidity ^0.8.24;
 ///         same split as PriceOracle: governance controls the fee parameters here, never
 ///         loan/settlement logic in the core contracts.
 interface IFeeManager {
+    /// @notice Recipient of protocol origination and interest fees.
     function feeRecipient() external view returns (address);
 
     /// @notice Charged on `fillAmount` at origination, paid by the borrower.

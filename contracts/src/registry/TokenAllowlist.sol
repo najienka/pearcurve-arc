@@ -8,6 +8,7 @@ import {ITokenAllowlist} from "../interfaces/ITokenAllowlist.sol";
 /// @notice Governor-curated ERC-20 allowlist. Deploy once for loan assets and once for
 ///         collateral — IntentSettlement holds both addresses as immutables.
 contract TokenAllowlist is Governable, ITokenAllowlist {
+    /// @inheritdoc ITokenAllowlist
     mapping(address => bool) public isApproved;
 
     event TokenRegistered(address indexed token);
@@ -26,6 +27,7 @@ contract TokenAllowlist is Governable, ITokenAllowlist {
         emit TokenRemoved(token);
     }
 
+    /// @inheritdoc ITokenAllowlist
     function requireApproved(address token) external view {
         require(isApproved[token], "Token not approved");
     }

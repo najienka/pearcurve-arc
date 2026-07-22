@@ -26,23 +26,26 @@ contract WBTCOracle is IChainlinkAggregatorV2V3 {
         btcBaseChainlinkAggregator = _btcBaseChainlinkAggregator;
     }
 
-    /// @notice The derived price is always normalized to 18 decimals.
+    /// @inheritdoc IChainlinkAggregatorV2V3
     function decimals() external pure override returns (uint8) {
         return 18;
     }
 
+    /// @inheritdoc IChainlinkAggregatorV2V3
     function description() external pure override returns (string memory) {
         return "WBTC / base";
     }
 
-    /// @notice The older (more conservative) `updatedAt` of the two underlying feeds.
+    /// @inheritdoc IChainlinkAggregatorV2V3
+    /// @dev Returns the older (more conservative) timestamp of the two underlying feeds.
     function latestTimestamp() external view override returns (uint256) {
         uint256 wbtcBtcTs = IChainlinkAggregatorV2V3(wbtcBtcChainlinkAggregator).latestTimestamp();
         uint256 btcBaseTs = IChainlinkAggregatorV2V3(btcBaseChainlinkAggregator).latestTimestamp();
         return wbtcBtcTs < btcBaseTs ? wbtcBtcTs : btcBaseTs;
     }
 
-    /// @notice Derived WBTC/base price. Returns 0 on any feed failure.
+    /// @inheritdoc IChainlinkAggregatorV2V3
+    /// @dev Derived WBTC/base price. Returns 0 on any feed failure.
     function latestAnswer() external view override returns (int256) {
         int256 wbtcBtcPrice = IChainlinkAggregatorV2V3(wbtcBtcChainlinkAggregator).latestAnswer();
         int256 btcBasePrice = IChainlinkAggregatorV2V3(btcBaseChainlinkAggregator).latestAnswer();

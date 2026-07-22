@@ -38,23 +38,26 @@ contract ChainlinkAggregatorV2V3 is IChainlinkAggregatorV2V3 {
         desc = _description;
     }
 
-    /// @notice The derived price is always normalized to 18 decimals.
+    /// @inheritdoc IChainlinkAggregatorV2V3
     function decimals() external pure override returns (uint8) {
         return 18;
     }
 
+    /// @inheritdoc IChainlinkAggregatorV2V3
     function description() external view override returns (string memory) {
         return desc;
     }
 
-    /// @notice The older (more conservative) `updatedAt` of the two underlying feeds.
+    /// @inheritdoc IChainlinkAggregatorV2V3
+    /// @dev Returns the older (more conservative) timestamp of the two underlying feeds.
     function latestTimestamp() external view override returns (uint256) {
         uint256 underlyingTs = IChainlinkAggregatorV2V3(underlyingUsdChainlinkAggregator).latestTimestamp();
         uint256 baseTs = IChainlinkAggregatorV2V3(baseUsdChainlinkAggregator).latestTimestamp();
         return underlyingTs < baseTs ? underlyingTs : baseTs;
     }
 
-    /// @notice Derived underlying/base price, 18-decimal precision. Returns 0 on any feed failure.
+    /// @inheritdoc IChainlinkAggregatorV2V3
+    /// @dev Derived underlying/base price, 18-decimal precision. Returns 0 on any feed failure.
     function latestAnswer() external view override returns (int256) {
         int256 baseUsdPrice = IChainlinkAggregatorV2V3(baseUsdChainlinkAggregator).latestAnswer();
         int256 underlyingUsdPrice = IChainlinkAggregatorV2V3(underlyingUsdChainlinkAggregator).latestAnswer();

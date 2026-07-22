@@ -102,6 +102,7 @@ contract IntentSettlement is EIP712, ReentrancyGuardTransient, IGatewayHookRecei
 
     // ═══════════════════ GATEWAY HOOK (Path B) ═══════════════════
 
+    /// @inheritdoc IGatewayHookReceiver
     function onGatewayMint(address loanToken, uint256 amount, bytes calldata hookData) external onlyGatewayMinter {
         address lender = abi.decode(hookData, (address));
         pendingBalance[lender][loanToken] += amount;
