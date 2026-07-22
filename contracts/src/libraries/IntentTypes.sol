@@ -54,44 +54,36 @@ library IntentTypes {
         "uint256 solverTipBps,uint256 expiry,uint256 nonce)"
     );
 
-    function hash(LenderIntent memory i) internal pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                LENDER_INTENT_TYPEHASH,
-                i.owner,
-                i.loanToken,
-                i.collateralToken,
-                i.minPrincipal,
-                i.maxPrincipal,
-                i.minRate,
-                i.minDuration,
-                i.maxDuration,
-                i.originationLtvBps,
-                i.liquidationLtvBps,
-                i.earlyRepaymentFeeBps,
-                i.allowPartialFill,
-                i.maxPerBorrowerAddress,
-                i.expiry,
-                i.nonce
-            )
-        );
+    /// @dev EIP-712 struct hash: `keccak256(abi.encode(TYPEHASH, fields...))`. Packed manually
+    ///      because a 16-argument `abi.encode` hits stack-too-deep under coverage builds.
+    function hash(LenderIntent memory i) internal pure returns (bytes32 result) {
+        bytes32 typeHash = LENDER_INTENT_TYPEHASH;
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, typeHash)
+            let src := i
+            let dest := add(ptr, 0x20)
+            for { let o := 0 } lt(o, 0x1e0) { o := add(o, 0x20) } {
+                mstore(add(dest, o), mload(add(src, o)))
+            }
+            result := keccak256(ptr, 0x200)
+            mstore(0x40, add(ptr, 0x200))
+        }
     }
 
-    function hash(BorrowerIntent memory i) internal pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                BORROWER_INTENT_TYPEHASH,
-                i.owner,
-                i.loanToken,
-                i.collateralToken,
-                i.principal,
-                i.maxRate,
-                i.duration,
-                i.maxCollateralAmount,
-                i.solverTipBps,
-                i.expiry,
-                i.nonce
-            )
-        );
+    /// @dev Same packing approach as `hash(LenderIntent)`.
+    function hash(BorrowerIntent memory i) internal pure returns (bytes32 result) {
+        bytes32 typeHash = BORROWER_INTENT_TYPEHASH;
+        assembly {
+            let ptr := mload(0x40)
+            mstore(ptr, typeHash)
+            let src := i
+            let dest := add(ptr, 0x20)
+            for { let o := 0 } lt(o, 0x140) { o := add(o, 0x20) } {
+                mstore(add(dest, o), mload(add(src, o)))
+            }
+            result := keccak256(ptr, 0x160)
+            mstore(0x40, add(ptr, 0x160))
+        }
     }
 }
