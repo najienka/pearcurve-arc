@@ -29,8 +29,11 @@ import {MockChainlinkAggregator} from "../test/mocks/MockChainlinkAggregator.sol
 ///
 /// Usage (from `contracts/`):
 ///   forge script script/NativeArcSanity.s.sol:NativeArcSanity \
-///     --rpc-url arc_testnet --broadcast -vvvv
+///     --rpc-url arc_testnet --broadcast --skip-simulation -vvvv
 ///
+///   `--skip-simulation` is required when using real Arc USDC: forge's local EVM does not
+///   implement Arc's blocklist precompile (0x1800…0001), so transferFrom reverts in sim even
+///   though the live chain accepts it. Mock USDC (`USE_MOCK_USDC=true`) does not need this.
 /// Env:
 ///   DEPLOYER_PRIVATE_KEY  - governor + deployer (required)
 ///   LENDER_PRIVATE_KEY    - defaults to deployer
@@ -39,7 +42,8 @@ import {MockChainlinkAggregator} from "../test/mocks/MockChainlinkAggregator.sol
 ///   USDC_ARC_ADDRESS      - defaults to Arc testnet USDC 0x3600...0000
 ///   WETH_ARC_ADDRESS      - optional; if unset, deploys a mock WETH collateral
 ///   ETH_USD_FEED          - optional override of Chainlink Arc ETH/USD proxy
-///   FILL_AMOUNT           - USDC fill (6 decimals), default 100e6
+///   FILL_AMOUNT           - USDC fill (6 decimals), default 5e6 (fits ~20 USDC faucet
+///                           when lender==borrower: principal + 1% fee + 0.5% tip + gas)
 ///   USE_MOCK_USDC         - if "true", mint a mock USDC instead of using Arc USDC
 contract NativeArcSanity is Script {
     using IntentTypes for IntentTypes.LenderIntent;
@@ -118,7 +122,7 @@ contract NativeArcSanity is Script {
     }
 
     function _deploy(Actors memory a) internal returns (Deployed memory d) {
-        d.fillAmount = vm.envOr("FILL_AMOUNT", uint256(100e6));
+        d.fillAmount = vm.envOr("FILL_AMOUNT", uint256(5e6));
 
         address ethUsdFeed = _resolveEthUsdFeed();
         d.ethOracle = new ChainlinkOracle(ethUsdFeed, 6, "ETH / USD (Arc)");

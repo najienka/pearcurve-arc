@@ -6,6 +6,9 @@ solc_version = "0.8.24"
 optimizer = true
 optimizer_runs = 200
 via_ir = true
+# Arc Testnet Arachnid CREATE2 factory (same vanity address as most EVMs)
+create2_deployer = "0x4e59b44847b379578588920cA78FbF26c0B4956C"
+fs_permissions = [{ access = "read-write", path = "./deployments" }]
 
 [lint]
 exclude_lints = [
