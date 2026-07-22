@@ -78,9 +78,7 @@ contract FeeCollectionTest is PearcurveTestBase {
         _repayAsBorrower(agreementId);
 
         assertEq(usdc.balanceOf(feeRecipient) - afterOrigination, expectedInterestFee);
-        assertEq(
-            usdc.balanceOf(feeRecipient) - feeBefore, expectedOrigination + expectedInterestFee
-        );
+        assertEq(usdc.balanceOf(feeRecipient) - feeBefore, expectedOrigination + expectedInterestFee);
     }
 
     function test_zeroFees_whenGovernanceSetsZero() public {

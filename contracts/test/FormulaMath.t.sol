@@ -189,8 +189,7 @@ contract FormulaMathTest is PearcurveTestBase {
         uint256 elapsed = 25 days;
         vm.warp(block.timestamp + elapsed);
 
-        (, uint256 earlyFee, uint256 totalOwed) =
-            _expectedEarlyRepaymentFee(fill, RATE_BPS, duration, elapsed, 10000);
+        (, uint256 earlyFee, uint256 totalOwed) = _expectedEarlyRepaymentFee(fill, RATE_BPS, duration, elapsed, 10000);
 
         uint256 totalInterest = _expectedAccruedInterest(fill, RATE_BPS, duration);
         assertEq(earlyFee, totalInterest - _expectedAccruedInterest(fill, RATE_BPS, elapsed));
@@ -302,8 +301,7 @@ contract FormulaMathTest is PearcurveTestBase {
 
         uint256 owed = fill + _expectedAccruedInterest(fill, RATE_BPS, duration);
         uint256 price = priceOracle.getPrice(address(col), address(usdc));
-        (uint256 expectedSeize, uint256 expectedReturn) =
-            _expectedDefaultSeize(owed, a.collateralAmount, price);
+        (uint256 expectedSeize, uint256 expectedReturn) = _expectedDefaultSeize(owed, a.collateralAmount, price);
 
         uint256 borrowerBefore = col.balanceOf(borrower);
         vm.prank(lender);

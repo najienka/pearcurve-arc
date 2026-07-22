@@ -8,7 +8,7 @@ import {IntentSettlement} from "../src/IntentSettlement.sol";
 import {LoanManager} from "../src/LoanManager.sol";
 import {LoanHealthViewer} from "../src/LoanHealthViewer.sol";
 import {PriceOracle} from "../src/oracles/PriceOracle.sol";
-import {ChainlinkOracle} from "../src/oracles/ChainlinkOracle.sol";
+import {ChainlinkFeedAdapter} from "../src/oracles/ChainlinkFeedAdapter.sol";
 import {FeeManager} from "../src/fees/FeeManager.sol";
 import {TokenAllowlist} from "../src/registry/TokenAllowlist.sol";
 import {IntentTypes} from "../src/libraries/IntentTypes.sol";
@@ -77,7 +77,7 @@ contract NativeArcSanity is Script {
     }
 
     struct Deployed {
-        ChainlinkOracle ethOracle;
+        ChainlinkFeedAdapter ethUsdFeedAdapter;
         FeeManager feeManager;
         PriceOracle priceOracle;
         LoanManager loanManager;
@@ -125,9 +125,9 @@ contract NativeArcSanity is Script {
         d.fillAmount = vm.envOr("FILL_AMOUNT", uint256(5e6));
 
         address ethUsdFeed = _resolveEthUsdFeed();
-        d.ethOracle = new ChainlinkOracle(ethUsdFeed, 6, "ETH / USD (Arc)");
-        console2.log("ChainlinkOracle", address(d.ethOracle));
-        console2.log("  latestAnswer (USDC 6-dec units)", uint256(d.ethOracle.latestAnswer()));
+        d.ethUsdFeedAdapter = new ChainlinkFeedAdapter(ethUsdFeed, 6, "ETH / USD (Arc)");
+        console2.log("EthUsdFeedAdapter", address(d.ethUsdFeedAdapter));
+        console2.log("  latestAnswer (USDC 6-dec units)", uint256(d.ethUsdFeedAdapter.latestAnswer()));
 
         (d.usdc, d.mockUsdc, d.weth, d.mockWeth) = _resolveTokens();
 
@@ -137,9 +137,9 @@ contract NativeArcSanity is Script {
         d.feeManager.setMaxSolverTipBps(500);
         d.feeManager.setMaxEarlyRepaymentFeeBps(10_000);
 
-        // Base = USDC so ChainlinkOracle(ETH/USD) registers directly as the WETH source.
+        // Base = USDC so ETH/USD ChainlinkFeedAdapter registers directly as the WETH source.
         d.priceOracle = new PriceOracle(a.deployer, d.usdc, 1e6);
-        d.priceOracle.setAssetPriceSource(d.weth, address(d.ethOracle));
+        d.priceOracle.setAssetPriceSource(d.weth, address(d.ethUsdFeedAdapter));
 
         TokenAllowlist loanRegistry = new TokenAllowlist(a.deployer);
         TokenAllowlist collateralRegistry = new TokenAllowlist(a.deployer);
@@ -196,10 +196,7 @@ contract NativeArcSanity is Script {
         return address(mock);
     }
 
-    function _resolveTokens()
-        internal
-        returns (address usdc, MockERC20 mockUsdc, address weth, MockERC20 mockWeth)
-    {
+    function _resolveTokens() internal returns (address usdc, MockERC20 mockUsdc, address weth, MockERC20 mockWeth) {
         if (_envBool("USE_MOCK_USDC", false)) {
             mockUsdc = new MockERC20("Mock USDC", "mUSDC", 6);
             usdc = address(mockUsdc);
@@ -222,9 +219,7 @@ contract NativeArcSanity is Script {
 
     function _requireBalances(Actors memory a, Deployed memory d) internal view {
         require(IERC20(d.usdc).balanceOf(a.lender) >= d.fillAmount, "Lender needs USDC; faucet or USE_MOCK_USDC=true");
-        require(
-            IERC20(d.usdc).balanceOf(a.borrower) >= d.borrowerUsdcNeeded, "Borrower needs USDC for fee+tip"
-        );
+        require(IERC20(d.usdc).balanceOf(a.borrower) >= d.borrowerUsdcNeeded, "Borrower needs USDC for fee+tip");
         require(IERC20(d.weth).balanceOf(a.borrower) >= d.collateralAmount, "Borrower needs WETH collateral");
     }
 
@@ -294,16 +289,12 @@ contract NativeArcSanity is Script {
         console2.log("rateBps    ", ag.rateBps);
         console2.log("lender     ", ag.lender);
         console2.log("borrower   ", ag.borrower);
-        console2.log("ChainlinkOracle (CHAINLINK_ORACLE_ADDRESS)", address(d.ethOracle));
+        console2.log("EthUsdFeedAdapter (ETH_USD_FEED_ADAPTER_ADDRESS)", address(d.ethUsdFeedAdapter));
         console2.log("IntentSettlement (INTENT_SETTLEMENT_ADDRESS)", address(d.settlement));
         console2.log("LoanManager (LOAN_MANAGER_ADDRESS)", address(d.loanManager));
     }
 
-    function _sign(uint256 pk, address verifyingContract, bytes32 structHash)
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _sign(uint256 pk, address verifyingContract, bytes32 structHash) internal view returns (bytes memory) {
         bytes32 domain = keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),

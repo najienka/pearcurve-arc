@@ -25,8 +25,9 @@ interface IERC20Decimals {
 ///           - A token with a direct Chainlink `TOKEN/baseCurrency` feed: register that feed address
 ///             directly via `setAssetPriceSource`.
 ///           - A token that only has e.g. a `TOKEN/USD` feed (most tokens, since direct
-///             `TOKEN/ETH` feeds are rare): deploy a `ChainlinkAggregatorV2V3` composite adapter
-///             wrapping `TOKEN/USD` + `baseCurrency/USD`, register the ADAPTER's address instead.
+///             `TOKEN/ETH` feeds are rare): deploy a `ChainlinkFeedAdapter` (single USD feed scaled
+///             to `baseCurrencyUnit`) or a `ChainlinkAggregatorV2V3` composite
+///             (`TOKEN/USD` + `baseCurrency/USD`), then register the adapter address.
 ///           - A token priced only via an intermediate asset (e.g. WBTC has a `WBTC/BTC` feed but
 ///             no `WBTC/ETH` feed): deploy `WBTCOracle` (or an equivalent composite) chaining
 ///             `WBTC/BTC` and `BTC/baseCurrency`, register that adapter's address.
@@ -76,8 +77,9 @@ contract PriceOracle is IPriceOracle, Governable {
     // ═══════════════════ GOVERNANCE ═══════════════════
 
     /// @notice Wires `asset` to `source` — either a real Chainlink feed already denominated in
-    ///         `baseCurrency`, or a composite adapter (e.g. `WBTCOracle`, `ChainlinkAggregatorV2V3`)
-    ///         that derives one. See the contract-level docs for which case applies to a given asset.
+    ///         `baseCurrency`, or a composite/adapter (e.g. `ChainlinkFeedAdapter`, `WBTCOracle`,
+    ///         `ChainlinkAggregatorV2V3`) that derives one. See the contract-level docs for which
+    ///         case applies to a given asset.
     function setAssetPriceSource(address asset, address source) external onlyGovernor {
         require(asset != address(0) && source != address(0), "Zero address");
         assetPriceSource[asset] = source;

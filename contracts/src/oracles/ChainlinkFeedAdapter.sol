@@ -4,18 +4,18 @@ pragma solidity ^0.8.24;
 import {IChainlinkAggregatorV2V3} from "../interfaces/IChainlinkAggregatorV2V3.sol";
 import {IChainlinkAggregatorV3} from "../interfaces/IChainlinkAggregatorV3.sol";
 
-/// @title ChainlinkOracle
-/// @notice Thin wrapper around a Chainlink AggregatorV3 proxy (e.g. Arc ETH/USD) that exposes the
-///         `IChainlinkAggregatorV2V3` + `IChainlinkAggregatorV3` surface `PriceOracle` expects, with
-///         the answer scaled to a fixed `targetDecimals` so it matches `PriceOracle.baseCurrencyUnit`.
+/// @title ChainlinkFeedAdapter
+/// @notice Reusable adapter for a single Chainlink AggregatorV3 proxy (ETH/USD, BTC/USD, …).
+///         Scales the feed answer to `targetDecimals` so it can be registered on `PriceOracle`
+///         as one asset’s price source. Deploy one instance per feed/token pair as needed.
 /// @dev Staleness is NOT validated here — `PriceOracle` reads `latestRoundData().updatedAt` (or
 ///      `latestTimestamp()`) and applies its own threshold.
-contract ChainlinkOracle is IChainlinkAggregatorV2V3, IChainlinkAggregatorV3 {
+contract ChainlinkFeedAdapter is IChainlinkAggregatorV2V3, IChainlinkAggregatorV3 {
     /// @notice Underlying Chainlink aggregator / proxy.
     address public immutable aggregator;
     /// @notice Decimals of the underlying feed (cached at construction).
     uint8 public immutable feedDecimals;
-    /// @notice Decimals of answers returned by this wrapper (must match `PriceOracle.baseCurrencyUnit`).
+    /// @notice Decimals of answers returned by this adapter (must match `PriceOracle.baseCurrencyUnit`).
     uint8 public immutable targetDecimals;
 
     string private desc;
@@ -61,8 +61,7 @@ contract ChainlinkOracle is IChainlinkAggregatorV2V3, IChainlinkAggregatorV3 {
         override
         returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
     {
-        (roundId, answer, startedAt, updatedAt, answeredInRound) =
-            IChainlinkAggregatorV3(aggregator).latestRoundData();
+        (roundId, answer, startedAt, updatedAt, answeredInRound) = IChainlinkAggregatorV3(aggregator).latestRoundData();
         answer = _scale(answer);
     }
 

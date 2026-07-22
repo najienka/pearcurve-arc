@@ -329,9 +329,7 @@ contract IntentMatchFieldsTest is PearcurveTestBase {
         uint256 fill2 = 100e6; // same borrower → 200 > 150
         uint256 col2 = _collateralForFill(fill2);
         _fundTokensForMatch(fill2, col2);
-        _matchExpectRevert(
-            li, _borrowerIntent(fill2, 30 days, 2), fill2, col2, RATE_BPS, "Exceeds per-borrower cap"
-        );
+        _matchExpectRevert(li, _borrowerIntent(fill2, 30 days, 2), fill2, col2, RATE_BPS, "Exceeds per-borrower cap");
     }
 
     function test_match_maxPerBorrowerAddress_zeroMeansUnlimited() public {

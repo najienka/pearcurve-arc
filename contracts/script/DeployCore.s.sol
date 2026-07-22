@@ -5,7 +5,7 @@ import {Script, console2} from "forge-std/Script.sol";
 
 import {FeeManager} from "../src/fees/FeeManager.sol";
 import {PriceOracle} from "../src/oracles/PriceOracle.sol";
-import {ChainlinkOracle} from "../src/oracles/ChainlinkOracle.sol";
+import {ChainlinkFeedAdapter} from "../src/oracles/ChainlinkFeedAdapter.sol";
 import {TokenAllowlist} from "../src/registry/TokenAllowlist.sol";
 import {LoanManager} from "../src/LoanManager.sol";
 import {IntentSettlement} from "../src/IntentSettlement.sol";
@@ -34,7 +34,10 @@ contract DeployCore is Script {
         address loanManager;
         address settlement;
         address healthViewer;
-        address chainlinkOracle;
+        /// @dev ETH/USD `ChainlinkFeedAdapter` (one adapter instance per price pair).
+        address ethUsdFeedAdapter;
+        /// @dev Underlying Chainlink AggregatorV3 (or mock) that the ETH/USD adapter wraps.
+        address ethUsdChainlinkFeed;
     }
 
     function run() external {
@@ -76,12 +79,7 @@ contract DeployCore is Script {
         d.loanManager = address(new LoanManager(predictedSettlement, d.priceOracle, d.feeManager));
         d.settlement = address(
             new IntentSettlement(
-                d.loanManager,
-                gatewayMinter,
-                d.feeManager,
-                d.priceOracle,
-                d.collateralRegistry,
-                d.loanRegistry
+                d.loanManager, gatewayMinter, d.feeManager, d.priceOracle, d.collateralRegistry, d.loanRegistry
             )
         );
         require(d.settlement == predictedSettlement, "Settlement address mismatch");
@@ -92,14 +90,15 @@ contract DeployCore is Script {
 
         address ethUsdFeed = _resolveEthUsdFeed();
         if (ethUsdFeed != address(0)) {
-            d.chainlinkOracle = _deployChainlinkOracle(ethUsdFeed, _decimalsOf(baseCurrencyUnit));
+            d.ethUsdChainlinkFeed = ethUsdFeed;
+            d.ethUsdFeedAdapter = _deployEthUsdFeedAdapter(ethUsdFeed, _decimalsOf(baseCurrencyUnit));
         }
 
         _configureFees(FeeManager(d.feeManager));
         if (!TokenAllowlist(d.loanRegistry).isApproved(baseCurrency)) {
             TokenAllowlist(d.loanRegistry).registerToken(baseCurrency);
         }
-        _maybeWireWeth(PriceOracle(d.priceOracle), TokenAllowlist(d.collateralRegistry), d.chainlinkOracle);
+        _maybeWireWeth(PriceOracle(d.priceOracle), TokenAllowlist(d.collateralRegistry), d.ethUsdFeedAdapter);
     }
 
     function _deployFeeManager(address governor, address feeRecipient) internal returns (address addr) {
@@ -132,10 +131,7 @@ contract DeployCore is Script {
         }
     }
 
-    function _deployAllowlist(uint256 saltSeed, address governor, string memory label)
-        internal
-        returns (address addr)
-    {
+    function _deployAllowlist(uint256 saltSeed, address governor, string memory label) internal returns (address addr) {
         bytes32 s = DeployConstants.salt(saltSeed);
         bytes32 initHash = keccak256(abi.encodePacked(type(TokenAllowlist).creationCode, abi.encode(governor)));
         addr = vm.computeCreate2Address(s, initHash);
@@ -149,8 +145,7 @@ contract DeployCore is Script {
 
     function _deployHealthViewer(address loanManager) internal returns (address addr) {
         bytes32 s = DeployConstants.salt(DeployConstants.SALT_HEALTH_VIEWER);
-        bytes32 initHash =
-            keccak256(abi.encodePacked(type(LoanHealthViewer).creationCode, abi.encode(loanManager)));
+        bytes32 initHash = keccak256(abi.encodePacked(type(LoanHealthViewer).creationCode, abi.encode(loanManager)));
         addr = vm.computeCreate2Address(s, initHash);
         if (addr.code.length == 0) {
             addr = address(new LoanHealthViewer{salt: s}(loanManager));
@@ -160,16 +155,16 @@ contract DeployCore is Script {
         }
     }
 
-    function _deployChainlinkOracle(address ethUsdFeed, uint8 targetDecimals) internal returns (address addr) {
-        bytes32 s = DeployConstants.salt(DeployConstants.SALT_CHAINLINK_ORACLE);
+    function _deployEthUsdFeedAdapter(address ethUsdFeed, uint8 targetDecimals) internal returns (address addr) {
+        bytes32 s = DeployConstants.salt(DeployConstants.SALT_ETH_USD_FEED_ADAPTER);
         bytes memory ctor = abi.encode(ethUsdFeed, targetDecimals, "ETH / USD (Arc)");
-        bytes32 initHash = keccak256(abi.encodePacked(type(ChainlinkOracle).creationCode, ctor));
+        bytes32 initHash = keccak256(abi.encodePacked(type(ChainlinkFeedAdapter).creationCode, ctor));
         addr = vm.computeCreate2Address(s, initHash);
         if (addr.code.length == 0) {
-            addr = address(new ChainlinkOracle{salt: s}(ethUsdFeed, targetDecimals, "ETH / USD (Arc)"));
-            console2.log("ChainlinkOracle deployed", addr);
+            addr = address(new ChainlinkFeedAdapter{salt: s}(ethUsdFeed, targetDecimals, "ETH / USD (Arc)"));
+            console2.log("EthUsdFeedAdapter deployed", addr);
         } else {
-            console2.log("ChainlinkOracle exists  ", addr);
+            console2.log("EthUsdFeedAdapter exists  ", addr);
         }
     }
 
@@ -180,36 +175,73 @@ contract DeployCore is Script {
         if (feeManager.maxEarlyRepaymentFeeBps() == 0) feeManager.setMaxEarlyRepaymentFeeBps(10_000);
     }
 
-    function _writeDeploymentJson(
-        Deployed memory d,
-        address governor,
-        address baseCurrency,
-        address gatewayMinter
-    ) internal {
+    function _writeDeploymentJson(Deployed memory d, address governor, address baseCurrency, address gatewayMinter)
+        internal
+    {
         vm.createDir("deployments", true);
 
-        string memory root = "deployment";
-        vm.serializeUint(root, "chainId", block.chainid);
-        vm.serializeAddress(root, "governor", governor);
-        vm.serializeAddress(root, "baseCurrency", baseCurrency);
-        vm.serializeAddress(root, "gatewayMinter", gatewayMinter);
-        vm.serializeAddress(root, "create2Factory", ArcAddresses.CREATE2_FACTORY);
-        vm.serializeAddress(root, "multicall3", ArcAddresses.MULTICALL3);
-        vm.serializeAddress(root, "feeManager", d.feeManager);
-        vm.serializeAddress(root, "priceOracle", d.priceOracle);
-        vm.serializeAddress(root, "loanRegistry", d.loanRegistry);
-        vm.serializeAddress(root, "collateralRegistry", d.collateralRegistry);
-        vm.serializeAddress(root, "loanManager", d.loanManager);
-        vm.serializeAddress(root, "intentSettlement", d.settlement);
-        vm.serializeAddress(root, "loanHealthViewer", d.healthViewer);
-        string memory json = vm.serializeAddress(root, "chainlinkOracle", d.chainlinkOracle);
+        // `feedAdapters` keyed by pair so additional feeds (BTC/USD, …) nest the same way.
+        string memory json = string.concat(
+            "{\n",
+            '  "chainId": ',
+            vm.toString(block.chainid),
+            ",\n",
+            '  "governor": "',
+            vm.toString(governor),
+            '",\n',
+            '  "baseCurrency": "',
+            vm.toString(baseCurrency),
+            '",\n',
+            '  "gatewayMinter": "',
+            vm.toString(gatewayMinter),
+            '",\n',
+            '  "create2Factory": "',
+            vm.toString(ArcAddresses.CREATE2_FACTORY),
+            '",\n',
+            '  "multicall3": "',
+            vm.toString(ArcAddresses.MULTICALL3),
+            '",\n',
+            '  "feeManager": "',
+            vm.toString(d.feeManager),
+            '",\n',
+            '  "priceOracle": "',
+            vm.toString(d.priceOracle),
+            '",\n',
+            '  "loanRegistry": "',
+            vm.toString(d.loanRegistry),
+            '",\n',
+            '  "collateralRegistry": "',
+            vm.toString(d.collateralRegistry),
+            '",\n',
+            '  "loanManager": "',
+            vm.toString(d.loanManager),
+            '",\n',
+            '  "intentSettlement": "',
+            vm.toString(d.settlement),
+            '",\n',
+            '  "loanHealthViewer": "',
+            vm.toString(d.healthViewer),
+            '",\n',
+            '  "feedAdapters": {\n',
+            '    "ETH/USD": {\n',
+            '      "pair": "ETH/USD",\n',
+            '      "adapter": "',
+            vm.toString(d.ethUsdFeedAdapter),
+            '",\n',
+            '      "chainlinkFeed": "',
+            vm.toString(d.ethUsdChainlinkFeed),
+            '"\n',
+            "    }\n",
+            "  }\n",
+            "}\n"
+        );
 
         string memory path = string.concat("deployments/", vm.toString(block.chainid), ".json");
-        vm.writeJson(json, path);
+        vm.writeFile(path, json);
         console2.log("Wrote", path);
     }
 
-    function _maybeWireWeth(PriceOracle priceOracle, TokenAllowlist collateralRegistry, address chainlinkOracle)
+    function _maybeWireWeth(PriceOracle priceOracle, TokenAllowlist collateralRegistry, address ethUsdFeedAdapter)
         internal
     {
         address weth = vm.envOr("WETH_ADDRESS", address(0));
@@ -217,19 +249,19 @@ contract DeployCore is Script {
             console2.log("WETH_ADDRESS unset; skip collateral/oracle wiring");
             return;
         }
-        require(chainlinkOracle != address(0), "Need ChainlinkOracle to price WETH");
+        require(ethUsdFeedAdapter != address(0), "Need ETH/USD feed adapter to price WETH");
         if (!collateralRegistry.isApproved(weth)) {
             collateralRegistry.registerToken(weth);
         }
         if (priceOracle.assetPriceSource(weth) == address(0)) {
-            priceOracle.setAssetPriceSource(weth, chainlinkOracle);
+            priceOracle.setAssetPriceSource(weth, ethUsdFeedAdapter);
         }
-        console2.log("Wired WETH collateral + price source", weth);
+        console2.log("Wired WETH collateral + ETH/USD feed adapter", weth);
     }
 
     function _resolveEthUsdFeed() internal returns (address feed) {
-        if (_envBool("SKIP_CHAINLINK_ORACLE", false)) {
-            console2.log("SKIP_CHAINLINK_ORACLE=true; no ChainlinkOracle");
+        if (_envBool("SKIP_ETH_USD_FEED_ADAPTER", false)) {
+            console2.log("SKIP_ETH_USD_FEED_ADAPTER=true; no ETH/USD ChainlinkFeedAdapter");
             return address(0);
         }
 
@@ -261,7 +293,9 @@ contract DeployCore is Script {
         console2.log("LoanManager        ", d.loanManager);
         console2.log("IntentSettlement   ", d.settlement);
         console2.log("LoanHealthViewer   ", d.healthViewer);
-        console2.log("ChainlinkOracle    ", d.chainlinkOracle);
+        console2.log("EthUsdFeedAdapter  ", d.ethUsdFeedAdapter);
+        console2.log("  pair              ETH/USD");
+        console2.log("  chainlinkFeed    ", d.ethUsdChainlinkFeed);
     }
 
     function _envBool(string memory key, bool defaultValue) internal view returns (bool) {

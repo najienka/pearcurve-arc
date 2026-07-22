@@ -341,12 +341,10 @@ abstract contract PearcurveTestBase is Test {
         return _fundAndApproveMatchCustom(fillUsdc, 2000, 30 days, 1);
     }
 
-    function _fundAndApproveMatchCustom(
-        uint256 fillUsdc,
-        uint256 earlyRepaymentFeeBps,
-        uint256 duration,
-        uint256 nonce
-    ) internal returns (uint256 agreementId) {
+    function _fundAndApproveMatchCustom(uint256 fillUsdc, uint256 earlyRepaymentFeeBps, uint256 duration, uint256 nonce)
+        internal
+        returns (uint256 agreementId)
+    {
         uint256 collateralAmount = _collateralForFill(fillUsdc);
         _fundTokensForMatch(fillUsdc, collateralAmount);
         return _match(
