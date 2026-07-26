@@ -9,11 +9,11 @@ Pearcurve is bilateral. One lender. One borrower. Fixed rate. Fixed term. Isolat
 ## How it works
 
 1. Lender and borrower sign EIP-712 intents off-chain (zero gas until matched). Vaults/Safes via EIP-1271.
-2. A permissionless solver matches them on-chain — no stake, no registration. Tips and gas are USDC.
-3. Capital can arrive cross-chain via **Circle Gateway** so USDC on Ethereum can fund an Arc loan without a manual bridge UX.
+2. A permissionless solver matches them on-chain — no stake or registration required. Tips and gas are USDC.
+3. Capital can arrive cross-chain via **Circle Gateway** so USDC on other supported chains can fund an Arc loan without a manual bridge UX.
 4. Settlement is atomic: collateral locked, principal delivered, agreement created.
 
-Repay, liquidate, and seize run on Arc-native USDC. Gas is USDC too — no ETH in the money path.
+Repay, liquidate, and seize run on Arc-native USDC. Gas is USDC too — no volatile gas tokens in the money path.
 
 ## Why Arc
 
