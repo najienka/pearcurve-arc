@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-BUSL
 pragma solidity ^0.8.24;
 
 /// @notice Shared structs and EIP-712 type hashes for Pearcurve intents.

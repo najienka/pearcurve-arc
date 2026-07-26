@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-BUSL
 pragma solidity ^0.8.24;
 
 /// @notice Simple mintable / burnable ERC20 for testing. Configurable decimals so collateral/loan

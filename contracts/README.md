@@ -107,4 +107,4 @@ See repo [`.env.example`](../.env.example). Common ones:
 
 ## License
 
-BUSL-1.1 (SPDX on sources).
+[**Business Source License**](./LICENSE) (Pearcurve Labs). Sources use `SPDX-License-Identifier: LicenseRef-BUSL`.
