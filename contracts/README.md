@@ -1,66 +1,39 @@
-## Foundry
+# Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Foundry core for Pearcurve on Arc (Solidity 0.8.24, `via_ir`).
 
-Foundry consists of:
+`IntentSettlement` and `LoanManager` are immutable — no owner, pause, or upgrade. Governance only reaches oracles, allowlists, and fee caps.
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## Layout
 
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```
+src/          IntentSettlement, LoanManager, oracles, fees, allowlists
+script/       DeployCore.s.sol, NativeArcSanity.s.sol
+test/         unit + lifecycle suites
+deployments/  written by DeployCore as <chainId>.json
 ```
 
-### Test
+## Commands
 
-```shell
-$ forge test
+```bash
+cd contracts
+forge soldeer install
+forge build
+forge test -vvv
+forge coverage --ir-minimum   # use this flag; plain coverage can fail stack limits
+
+forge script script/DeployCore.s.sol --rpc-url arc_testnet --broadcast
 ```
 
-### Format
+From repo root: `npm run build:contracts` · `npm run test:contracts` · `npm run deploy:arc`
 
-```shell
-$ forge fmt
-```
+## Notes
 
-### Gas Snapshots
+- **Path A:** lender `approve` + `transferFrom` at match.
+- **Path B:** `onGatewayMint` / `pendingBalance` — Circle’s minter does not call this hook today; see [demo README](../demo/README.md).
+- Liquidations use the **live** oracle (revert if stale).
+- Env: see [`.env.example`](../.env.example) (`DEPLOYER_PRIVATE_KEY`, Gateway/USDC/WETH, `FILL_AMOUNT`).
 
-```shell
-$ forge snapshot
-```
+## License
 
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+[Business Source License](./LICENSE) — `SPDX-License-Identifier: LicenseRef-BUSL`.

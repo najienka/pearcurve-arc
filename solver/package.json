@@ -2,15 +2,16 @@
   "name": "solver",
   "version": "1.0.0",
   "scripts": {
+    "prestart": "node ../scripts/export-abis.cjs",
     "start": "ts-node src/index.ts"
   },
   "dependencies": {
-    "viem": "^2.21.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "viem": "^2.21.54"
   },
   "devDependencies": {
-    "typescript": "^5.5.0",
+    "@types/node": "^20.14.0",
     "ts-node": "^10.9.2",
-    "@types/node": "^20.14.0"
+    "typescript": "^5.5.0"
   }
 }

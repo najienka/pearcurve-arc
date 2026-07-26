@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: LicenseRef-BUSL
 pragma solidity ^0.8.24;
 
 import {Script, console2} from "forge-std/Script.sol";
@@ -180,8 +180,9 @@ contract DeployCore is Script {
     {
         vm.createDir("deployments", true);
 
-        // `feedAdapters` keyed by pair so additional feeds (BTC/USD, …) nest the same way.
-        string memory json = string.concat(
+        // Chunk `string.concat` — a single ~50-arg concat hits stack-too-deep under
+        // `forge coverage --ir-minimum` (Yul cannot spill past ~16 stack slots).
+        string memory meta = string.concat(
             "{\n",
             '  "chainId": ',
             vm.toString(block.chainid),
@@ -194,7 +195,9 @@ contract DeployCore is Script {
             '",\n',
             '  "gatewayMinter": "',
             vm.toString(gatewayMinter),
-            '",\n',
+            '",\n'
+        );
+        string memory infra = string.concat(
             '  "create2Factory": "',
             vm.toString(ArcAddresses.CREATE2_FACTORY),
             '",\n',
@@ -206,7 +209,9 @@ contract DeployCore is Script {
             '",\n',
             '  "priceOracle": "',
             vm.toString(d.priceOracle),
-            '",\n',
+            '",\n'
+        );
+        string memory core = string.concat(
             '  "loanRegistry": "',
             vm.toString(d.loanRegistry),
             '",\n',
@@ -221,7 +226,10 @@ contract DeployCore is Script {
             '",\n',
             '  "loanHealthViewer": "',
             vm.toString(d.healthViewer),
-            '",\n',
+            '",\n'
+        );
+        // `feedAdapters` keyed by pair so additional feeds (BTC/USD, …) nest the same way.
+        string memory feeds = string.concat(
             '  "feedAdapters": {\n',
             '    "ETH/USD": {\n',
             '      "pair": "ETH/USD",\n',
@@ -236,6 +244,7 @@ contract DeployCore is Script {
             "}\n"
         );
 
+        string memory json = string.concat(meta, infra, core, feeds);
         string memory path = string.concat("deployments/", vm.toString(block.chainid), ".json");
         vm.writeFile(path, json);
         console2.log("Wrote", path);

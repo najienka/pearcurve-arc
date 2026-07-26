@@ -3,10 +3,11 @@
   "private": true,
   "workspaces": ["demo", "solver"],
   "scripts": {
+    "export:abis": "node scripts/export-abis.cjs",
     "demo": "npm --workspace demo run demo",
     "solver": "npm --workspace solver run start",
-    "build:contracts": "cd contracts && forge build",
+    "build:contracts": "cd contracts && forge build && node ../scripts/export-abis.cjs --skip-build",
     "test:contracts": "cd contracts && forge test -vvv",
-    "deploy:arc": "cd contracts && forge script script/Deploy.s.sol --rpc-url arc_testnet --broadcast --verify"
+    "deploy:arc": "cd contracts && forge script script/DeployCore.s.sol --rpc-url arc_testnet --broadcast"
   }
 }
