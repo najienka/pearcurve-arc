@@ -148,6 +148,72 @@ contract IntentSettlementTest is PearcurveTestBase {
         settlement.onGatewayMint(address(usdc), 1, abi.encode(lender));
     }
 
+    /// @notice Path A without lender `approve`: solver submits EIP-2612 permit, then match pulls funds.
+    function test_matchIntents_viaLenderPermit() public {
+        uint256 fill = 500e6;
+        uint256 collateralAmount = _collateralForFill(fill);
+        uint256 originationFee = fill * feeManager.originationFeeBps() / BPS;
+        uint256 solverTip = fill * 50 / BPS;
+
+        usdc.mint(lender, fill);
+        usdc.mint(borrower, originationFee + solverTip);
+        col.mint(borrower, collateralAmount);
+
+        // Borrower still approves LoanManager; lender does NOT approve settlement.
+        vm.startPrank(borrower);
+        col.approve(address(loanManager), collateralAmount);
+        usdc.approve(address(loanManager), originationFee + solverTip);
+        vm.stopPrank();
+
+        assertEq(usdc.allowance(lender, address(settlement)), 0);
+
+        uint256 deadline = block.timestamp + 1 days;
+        (uint8 v, bytes32 r, bytes32 s) = _signUsdcPermit(address(settlement), fill, deadline);
+
+        // Solver (or anyone) submits permit — mirrors demo Path A.
+        vm.prank(solver);
+        usdc.permit(lender, address(settlement), fill, deadline, v, r, s);
+        assertEq(usdc.allowance(lender, address(settlement)), fill);
+
+        uint256 agreementId =
+            _match(_defaultLenderIntent(), _defaultBorrowerIntent(fill), fill, collateralAmount, RATE_BPS);
+        assertEq(agreementId, 0);
+        assertEq(usdc.balanceOf(lender), 0);
+        assertEq(usdc.allowance(lender, address(settlement)), 0);
+    }
+
+    function test_matchIntents_revertsWithoutPermitOrApprove() public {
+        uint256 fill = 100e6;
+        uint256 collateralAmount = _collateralForFill(fill);
+        uint256 originationFee = fill * feeManager.originationFeeBps() / BPS;
+        uint256 solverTip = fill * 50 / BPS;
+
+        usdc.mint(lender, fill);
+        usdc.mint(borrower, originationFee + solverTip);
+        col.mint(borrower, collateralAmount);
+
+        vm.startPrank(borrower);
+        col.approve(address(loanManager), collateralAmount);
+        usdc.approve(address(loanManager), originationFee + solverTip);
+        vm.stopPrank();
+
+        // No lender approve / permit → transferFrom underflows / reverts in MockERC20Permit (OZ).
+        vm.expectRevert();
+        _match(_defaultLenderIntent(), _defaultBorrowerIntent(fill), fill, collateralAmount, RATE_BPS);
+    }
+
+    function test_permit_revertsWhenExpired() public {
+        uint256 fill = 100e6;
+        usdc.mint(lender, fill);
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signUsdcPermit(address(settlement), fill, deadline);
+
+        vm.warp(deadline + 1);
+        vm.prank(solver);
+        vm.expectRevert();
+        usdc.permit(lender, address(settlement), fill, deadline, v, r, s);
+    }
+
     function _fundLenderBorrower(uint256 fillUsdc, uint256 collateralAmount) internal {
         uint256 originationFee = fillUsdc * feeManager.originationFeeBps() / BPS;
         uint256 solverTip = fillUsdc * 50 / BPS;

@@ -10,6 +10,7 @@ import {FeeManager} from "../../src/fees/FeeManager.sol";
 import {TokenAllowlist} from "../../src/registry/TokenAllowlist.sol";
 import {IntentTypes} from "../../src/libraries/IntentTypes.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
+import {MockERC20Permit} from "../mocks/MockERC20Permit.sol";
 import {MockChainlinkAggregator} from "../mocks/MockChainlinkAggregator.sol";
 
 abstract contract PearcurveTestBase is Test {
@@ -41,7 +42,7 @@ abstract contract PearcurveTestBase is Test {
     LoanHealthViewer internal healthViewer;
 
     MockERC20 internal weth;
-    MockERC20 internal usdc;
+    MockERC20Permit internal usdc;
     MockERC20 internal col;
     MockChainlinkAggregator internal usdcFeed;
     MockChainlinkAggregator internal colFeed;
@@ -68,7 +69,7 @@ abstract contract PearcurveTestBase is Test {
         vm.stopPrank();
 
         weth = new MockERC20("WETH", "WETH", 18);
-        usdc = new MockERC20("USDC", "USDC", 6);
+        usdc = new MockERC20Permit("USDC", "USDC", 6);
         col = new MockERC20("COL", "COL", 18);
 
         priceOracle = new PriceOracle(governor, address(weth), 1e18);
@@ -293,6 +294,25 @@ abstract contract PearcurveTestBase is Test {
         });
         vm.prank(solver);
         return settlement.matchIntents(p);
+    }
+
+    function _signUsdcPermit(address spender, uint256 value, uint256 deadline)
+        internal
+        view
+        returns (uint8 v, bytes32 r, bytes32 s)
+    {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                lender,
+                spender,
+                value,
+                usdc.nonces(lender),
+                deadline
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", usdc.DOMAIN_SEPARATOR(), structHash));
+        return vm.sign(LENDER_PK, digest);
     }
 
     function _fundTokensForMatch(uint256 fillUsdc, uint256 collateralAmount) internal {
