@@ -149,6 +149,7 @@ contract NativeArcSanity is Script {
         address predictedSettlement = vm.computeCreateAddress(a.deployer, vm.getNonce(a.deployer) + 1);
         d.loanManager = new LoanManager(predictedSettlement, address(d.priceOracle), address(d.feeManager));
         d.settlement = new IntentSettlement(
+            a.deployer,
             address(d.loanManager),
             ARC_GATEWAY_MINTER,
             address(d.feeManager),

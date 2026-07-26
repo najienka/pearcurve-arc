@@ -2,10 +2,9 @@
 pragma solidity ^0.8.24;
 
 /// @title Governable
-/// @notice Two-step governance handover mixin used by the oracle and registry contracts.
-///         Kept out of the immutable settlement/loan core entirely — governance only ever
-///         controls the periphery (which feeds are trusted, which tokens are listed), never
-///         the settlement or loan lifecycle logic itself.
+/// @notice Two-step governance handover mixin used by periphery contracts and by
+///         IntentSettlement solely for rotating `gatewayMinter`. Matching / loan
+///         lifecycle remain ungated.
 abstract contract Governable {
     address public governor;
     address public pendingGovernor;

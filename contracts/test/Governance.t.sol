@@ -34,6 +34,20 @@ contract GovernanceTest is PearcurveTestBase {
         loanRegistry.requireApproved(token);
     }
 
+    function test_settlement_setGatewayMinter() public {
+        address next = makeAddr("nextMinter");
+        vm.prank(governor);
+        settlement.setGatewayMinter(next);
+        assertEq(settlement.gatewayMinter(), next);
+
+        vm.expectRevert("Not governor");
+        settlement.setGatewayMinter(makeAddr("other"));
+
+        vm.prank(governor);
+        vm.expectRevert("Zero address");
+        settlement.setGatewayMinter(address(0));
+    }
+
     function test_feeManager_settersAndCaps() public {
         vm.startPrank(governor);
         feeManager.setFeeRecipient(makeAddr("newRecipient"));

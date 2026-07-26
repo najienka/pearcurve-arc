@@ -8,44 +8,40 @@ import {ITokenAllowlist} from "./interfaces/ITokenAllowlist.sol";
 import {IFeeManager} from "./interfaces/IFeeManager.sol";
 import {ILoanManager} from "./interfaces/ILoanManager.sol";
 import {IGatewayHookReceiver} from "./interfaces/IGatewayHookReceiver.sol";
+import {Governable} from "./governance/Governable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 
 /// @title IntentSettlement
-/// @notice Fully permissionless, immutable settlement layer for Pearcurve.
+/// @notice Permissionless settlement layer for Pearcurve.
 ///
-///         NO admin. NO owner. NO pause. NO upgrade proxy.
-///         Any solver — zero gate, zero stake on who can match or fill.
+///         Matching is open: no pause, no upgrade proxy, no solver gate or stake.
+///         Pricing / asset eligibility come from immutable refs to governed periphery
+///         (`priceOracle`, allowlists, `feeManager`). Swapping those contracts means
+///         deploying a new IntentSettlement.
 ///
-///         Pricing and asset/collateral eligibility are NOT a lender's free choice: both are
-///         read from `priceOracle` / `collateralTokenRegistry` / `loanAssetRegistry`, three
-///         immutable references set at deployment. Those contracts are independently governed
-///         (see PriceOracle/TokenAllowlist) — governance controls which feeds and tokens are
-///         trusted, never this contract's settlement logic, and swapping to a different
-///         oracle/registry set means deploying a new IntentSettlement, not calling an admin
-///         function on this one.
+///         The sole governed knob on this contract is `gatewayMinter` — the only address
+///         allowed to call `onGatewayMint` (Path B). Governance can rotate it if Circle
+///         adds a real hook or a composition wrapper is deployed; matching logic stays
+///         permissionless.
 ///
-///         Intents are always EIP-712 signed off-chain (EOA via ECDSA, or contract via
-///         EIP-1271 — curated vaults, Safes, curator committees) — zero gas until matched.
-///         Matching itself is never automatic: a solver computes the pairing (which lender,
-///         which borrower, at what rate/amount) off-chain and submits it in one call to
-///         matchIntents(), which only validates the pairing, never discovers one.
+///         Intents are EIP-712 signed off-chain (EOA or EIP-1271). A solver submits
+///         `matchIntents()`; settlement validates, it does not discover pairs.
 ///
-///         Lender funding sources (transparent to the solver):
-///           PATH A: native — lender approves this contract, settlement
-///           pulls via safeTransferFrom.
-///           PATH B: cross-chain via Circle Gateway — Gateway's Minter
-///           pushes USDC directly here and fires onGatewayMint; no
-///           approval needed, tracked in an internal pendingBalance ledger.
-contract IntentSettlement is EIP712, ReentrancyGuardTransient, IGatewayHookReceiver {
+///         Funding:
+///           PATH A: lender approves; settlement `transferFrom`s.
+///           PATH B: `onGatewayMint` credits `pendingBalance` (future-proof; Circle's
+///           Gateway Minter does not invoke this hook today).
+contract IntentSettlement is EIP712, ReentrancyGuardTransient, Governable, IGatewayHookReceiver {
     using SafeERC20 for IERC20;
     using IntentTypes for IntentTypes.LenderIntent;
     using IntentTypes for IntentTypes.BorrowerIntent;
 
     ILoanManager public immutable loanManager;
-    address public immutable gatewayMinter;
+    /// @notice Sole caller allowed for `onGatewayMint`. Mutable by governor.
+    address public gatewayMinter;
     IFeeManager public immutable feeManager;
     IPriceOracle public immutable priceOracle;
     ITokenAllowlist public immutable collateralTokenRegistry;
@@ -63,6 +59,7 @@ contract IntentSettlement is EIP712, ReentrancyGuardTransient, IGatewayHookRecei
     event NonceInvalidated(address indexed owner, uint256 nonce);
     event AuthorizationSet(address indexed authorizer, address indexed authorized, bool value);
     event GatewayDepositReceived(address indexed lender, address indexed loanToken, uint256 amount);
+    event GatewayMinterUpdated(address indexed oldMinter, address indexed newMinter);
     event Matched(
         bytes32 indexed lenderIntentHash,
         bytes32 indexed borrowerIntentHash,
@@ -80,16 +77,17 @@ contract IntentSettlement is EIP712, ReentrancyGuardTransient, IGatewayHookRecei
     }
 
     constructor(
+        address _governor,
         address _loanManager,
         address _gatewayMinter,
         address _feeManager,
         address _priceOracle,
         address _collateralTokenRegistry,
         address _loanAssetRegistry
-    ) EIP712("Pearcurve", "1") {
+    ) EIP712("Pearcurve", "1") Governable(_governor) {
         require(
-            _feeManager != address(0) && _priceOracle != address(0) && _collateralTokenRegistry != address(0)
-                && _loanAssetRegistry != address(0),
+            _gatewayMinter != address(0) && _feeManager != address(0) && _priceOracle != address(0)
+                && _collateralTokenRegistry != address(0) && _loanAssetRegistry != address(0),
             "Zero address"
         );
         loanManager = ILoanManager(_loanManager);
@@ -98,6 +96,14 @@ contract IntentSettlement is EIP712, ReentrancyGuardTransient, IGatewayHookRecei
         priceOracle = IPriceOracle(_priceOracle);
         collateralTokenRegistry = ITokenAllowlist(_collateralTokenRegistry);
         loanAssetRegistry = ITokenAllowlist(_loanAssetRegistry);
+    }
+
+    /// @notice Rotates the address allowed to credit Path B `pendingBalance` via `onGatewayMint`.
+    function setGatewayMinter(address newMinter) external onlyGovernor {
+        require(newMinter != address(0), "Zero address");
+        address old = gatewayMinter;
+        gatewayMinter = newMinter;
+        emit GatewayMinterUpdated(old, newMinter);
     }
 
     // ═══════════════════ GATEWAY HOOK (Path B) ═══════════════════

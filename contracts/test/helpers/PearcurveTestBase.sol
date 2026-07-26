@@ -91,6 +91,7 @@ abstract contract PearcurveTestBase is Test {
         address predictedSettlement = vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1);
         loanManager = new LoanManager(predictedSettlement, address(priceOracle), address(feeManager));
         settlement = new IntentSettlement(
+            governor,
             address(loanManager),
             gatewayMinter,
             address(feeManager),
