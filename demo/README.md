@@ -83,7 +83,7 @@ Circle fees (gas + 0.005% transfer) are paid in USDC from the Gateway unified ba
 - [Fees](https://developers.circle.com/gateway/references/fees)
 - [Domains](https://developers.circle.com/gateway/references/supported-blockchains) — Sepolia `0`, Arc `26`
 
-## Tips for the panel
+## Pre-demo checklist
 
 1. Fund lender Sepolia USDC **and** wait for Gateway deposit finality (~65 Sepolia blocks) before Phase 4.
 2. Fund Arc wallets with USDC for gas (Arc gas token = USDC) and borrower collateral (WETH).

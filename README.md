@@ -2,20 +2,22 @@
 
 > The bilateral credit primitive for Arc. One lender, one borrower, zero shared risk — settled in under 500ms.
 
-Shared lending pools socialize loss: one bad listing can freeze everyone. Pearcurve is bilateral. A default in one agreement never touches another lender. No pool, no shared accounting, no floating rates by the block.
+Pool-based DeFi lending fails three ways: floating rates, socialised credit risk, and no defined maturity. One bad collateral listing can freeze withdrawals for lenders who never underwrote that asset.
+
+Pearcurve is bilateral. One lender. One borrower. Fixed rate. Fixed term. Isolated risk at the agreement level. No shared pool. No shared accounting. A default in one loan never touches another lender.
 
 ## How it works
 
 1. Lender and borrower sign EIP-712 intents off-chain (zero gas until matched). Vaults/Safes via EIP-1271.
-2. A permissionless solver matches them on-chain — no stake, no registration and solver PnL all calculated in USDC.
+2. A permissionless solver matches them on-chain — no stake, no registration. Tips and gas are USDC.
 3. Capital can arrive cross-chain via **Circle Gateway** so USDC on Ethereum can fund an Arc loan without a manual bridge UX.
 4. Settlement is atomic: collateral locked, principal delivered, agreement created.
 
-Repay, liquidate, and seize run on Arc-native USDC. Gas is USDC too - no ETH in the money path.
+Repay, liquidate, and seize run on Arc-native USDC. Gas is USDC too — no ETH in the money path.
 
 ## Why Arc
 
-- USDC as native gas — solvers earn tips and pay gas in the same asset as the loan. No need to convert between assets to calculate solver PnL.
+- USDC as native gas — solvers earn tips and pay gas in the same asset as the loan
 - Gateway + instant finality — fast enough to lock a fixed rate before either side reprices
 
 ## Repository
