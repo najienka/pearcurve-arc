@@ -306,17 +306,21 @@ async function main() {
       criticalGap(
         "Path B gap — Circle never calls onGatewayMint",
         [
-          "Gateway Minter.gatewayMint mints USDC to destinationRecipient via ERC-20 transfer.",
-          "It does NOT call IntentSettlement.onGatewayMint, so pendingBalance stays 0.",
-          "hookData is composition metadata only (Circle technical guide).",
+          "Gateway Minter.gatewayMint mints USDC to destinationRecipient",
+          "via ERC-20 transfer.",
+          "It does NOT call IntentSettlement.onGatewayMint, so",
+          "pendingBalance stays 0.",
+          "hookData is composition metadata only (Circle technical",
+          "guide).",
           "",
           "Fix options:",
-          "  1) Redesign Path B (e.g. multicall mint+credit, or pull-pattern after mint).",
-          "  2) Use GATEWAY_DEMO_PATH=pathA (mint to lender → approve → match).",
-          "",
-          CIRCLE_GATEWAY_NOTES.docs.transferHowTo,
+          "  1) Redesign Path B (e.g. multicall mint+credit, or",
+          "     pull-pattern after mint).",
+          "  2) Use GATEWAY_DEMO_PATH=pathA (mint to lender ->",
+          "     approve -> match).",
         ].join("\n"),
       );
+      info(`Docs: ${CIRCLE_GATEWAY_NOTES.docs.transferHowTo}`);
       throw new Error("Path B cannot complete with Circle's published Gateway Minter behavior.");
     }
   } else {
