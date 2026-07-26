@@ -1,0 +1,22 @@
+{
+  "abi": [
+    {
+      "type": "function",
+      "name": "gatewayMint",
+      "inputs": [
+        {
+          "name": "attestationPayload",
+          "type": "bytes"
+        },
+        {
+          "name": "signature",
+          "type": "bytes"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    }
+  ],
+  "_source": "https://developers.circle.com/gateway/howtos/transfer-unified-usdc-balance (gatewayMinterAbi)",
+  "_note": "Circle Gateway Minter does NOT call onGatewayMint. It mints USDC to TransferSpec.destinationRecipient via gatewayMint(attestation, signature)."
+}

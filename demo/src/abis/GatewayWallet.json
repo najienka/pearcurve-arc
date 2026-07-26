@@ -1,0 +1,42 @@
+{
+  "abi": [
+    {
+      "type": "function",
+      "name": "deposit",
+      "inputs": [
+        {
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "name": "value",
+          "type": "uint256"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "depositFor",
+      "inputs": [
+        {
+          "name": "token",
+          "type": "address"
+        },
+        {
+          "name": "depositor",
+          "type": "address"
+        },
+        {
+          "name": "value",
+          "type": "uint256"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    }
+  ],
+  "_source": "https://developers.circle.com/gateway/references/technical-guide#deposit",
+  "_note": "Pre-deposit into GatewayWallet is REQUIRED before burn intents. Direct ERC-20 transfer to the wallet loses funds."
+}

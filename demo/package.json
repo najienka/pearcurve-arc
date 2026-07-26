@@ -2,17 +2,18 @@
   "name": "demo",
   "version": "1.0.0",
   "scripts": {
+    "predemo": "node ../scripts/export-abis.cjs",
     "demo": "ts-node src/demo.ts"
   },
   "dependencies": {
-    "viem": "^2.21.0",
-    "dotenv": "^16.4.5",
+    "boxen": "^5.1.2",
     "chalk": "^4.1.2",
-    "boxen": "^5.1.2"
+    "dotenv": "^16.4.5",
+    "viem": "^2.21.54"
   },
   "devDependencies": {
-    "typescript": "^5.5.0",
+    "@types/node": "^20.14.0",
     "ts-node": "^10.9.2",
-    "@types/node": "^20.14.0"
+    "typescript": "^5.5.0"
   }
 }
