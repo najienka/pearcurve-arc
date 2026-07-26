@@ -23,7 +23,9 @@ npm run deploy:arc     # if addresses empty
 npm run demo
 ```
 
-Required env (throws if missing): `ETH_RPC_URL`, Arc RPC/chain, lender/borrower/solver keys, `INTENT_SETTLEMENT_ADDRESS`, `LOAN_MANAGER_ADDRESS`, USDC/WETH addresses, `COLLATERAL_AMOUNT`. Gateway defaults are in `.env.example`.
+Required env (throws if missing): `ETH_RPC_URL`, Arc RPC/chain, lender/borrower/solver keys, `INTENT_SETTLEMENT_ADDRESS`, `LOAN_MANAGER_ADDRESS`, USDC/WETH addresses. Gateway defaults are in `.env.example`.
+
+`COLLATERAL_AMOUNT` is optional — unset falls back to 0.001 WETH with a warning; set it explicitly for production demos.
 
 ## Path A vs Path B
 
