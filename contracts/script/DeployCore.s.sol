@@ -79,13 +79,7 @@ contract DeployCore is Script {
         d.loanManager = address(new LoanManager(predictedSettlement, d.priceOracle, d.feeManager));
         d.settlement = address(
             new IntentSettlement(
-                governor,
-                d.loanManager,
-                gatewayMinter,
-                d.feeManager,
-                d.priceOracle,
-                d.collateralRegistry,
-                d.loanRegistry
+                d.loanManager, d.feeManager, d.priceOracle, d.collateralRegistry, d.loanRegistry
             )
         );
         require(d.settlement == predictedSettlement, "Settlement address mismatch");

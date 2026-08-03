@@ -13,30 +13,6 @@ contract IntentSettlementTest is PearcurveTestBase {
         assertEq(loanManager.nextAgreementId(), 1);
     }
 
-    function test_gatewayFundingPath() public {
-        uint256 fill = 500e6;
-        uint256 collateralAmount = _collateralForFill(fill);
-        uint256 originationFee = fill * feeManager.originationFeeBps() / BPS;
-        uint256 solverTip = fill * 50 / BPS;
-
-        usdc.mint(address(settlement), fill);
-        vm.prank(gatewayMinter);
-        settlement.onGatewayMint(address(usdc), fill, abi.encode(lender));
-
-        col.mint(borrower, collateralAmount);
-        usdc.mint(borrower, originationFee + solverTip);
-
-        vm.startPrank(borrower);
-        col.approve(address(loanManager), collateralAmount);
-        usdc.approve(address(loanManager), originationFee + solverTip);
-        vm.stopPrank();
-
-        IntentTypes.BorrowerIntent memory bi = _defaultBorrowerIntent(fill);
-        _match(_defaultLenderIntent(), bi, fill, collateralAmount, RATE_BPS);
-
-        assertEq(settlement.pendingBalance(lender, address(usdc)), 0);
-    }
-
     function test_cancelIntentAndInvalidateNonce() public {
         IntentTypes.LenderIntent memory li = _defaultLenderIntent();
         bytes32 hash = _lenderHash(li);
@@ -141,11 +117,6 @@ contract IntentSettlementTest is PearcurveTestBase {
         IntentTypes.LenderIntent memory li = _defaultLenderIntent();
         bytes32 lenderHash = _lenderHash(li);
         assertEq(settlement.filledAmount(lenderHash), fill);
-    }
-
-    function test_onGatewayMint_revertsForNonMinter() public {
-        vm.expectRevert("Not Gateway Minter");
-        settlement.onGatewayMint(address(usdc), 1, abi.encode(lender));
     }
 
     /// @notice Path A without lender `approve`: solver submits EIP-2612 permit, then match pulls funds.

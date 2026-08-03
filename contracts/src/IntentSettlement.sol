@@ -7,8 +7,6 @@ import {IPriceOracle} from "./interfaces/IPriceOracle.sol";
 import {ITokenAllowlist} from "./interfaces/ITokenAllowlist.sol";
 import {IFeeManager} from "./interfaces/IFeeManager.sol";
 import {ILoanManager} from "./interfaces/ILoanManager.sol";
-import {IGatewayHookReceiver} from "./interfaces/IGatewayHookReceiver.sol";
-import {Governable} from "./governance/Governable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
@@ -17,37 +15,30 @@ import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/Reentrancy
 /// @title IntentSettlement
 /// @notice Permissionless settlement layer for Pearcurve.
 ///
-///         Matching is open: no pause, no upgrade proxy, no solver gate or stake.
+///         NO admin. NO owner. NO pause. NO upgrade proxy.
+///         Any solver — zero gate, zero stake on who can match or fill.
+///
 ///         Pricing / asset eligibility come from immutable refs to governed periphery
 ///         (`priceOracle`, allowlists, `feeManager`). Swapping those contracts means
 ///         deploying a new IntentSettlement.
 ///
-///         The sole governed knob on this contract is `gatewayMinter` — the only address
-///         allowed to call `onGatewayMint` (Path B). Governance can rotate it if Circle
-///         adds a real hook or a composition wrapper is deployed; matching logic stays
-///         permissionless.
-///
 ///         Intents are EIP-712 signed off-chain (EOA or EIP-1271). A solver submits
 ///         `matchIntents()`; settlement validates, it does not discover pairs.
 ///
-///         Funding:
-///           PATH A: lender approves; settlement `transferFrom`s.
-///           PATH B: `onGatewayMint` credits `pendingBalance` (future-proof; Circle's
-///           Gateway Minter does not invoke this hook today).
-contract IntentSettlement is EIP712, ReentrancyGuardTransient, Governable, IGatewayHookReceiver {
+///         Lender funding: Path A — lender approves (or EIP-2612 permit) then settlement
+///         `transferFrom`s into LoanManager. Cross-chain Gateway capital is expected to
+///         land in the lender wallet first (mint-to-lender), then use Path A.
+contract IntentSettlement is EIP712, ReentrancyGuardTransient {
     using SafeERC20 for IERC20;
     using IntentTypes for IntentTypes.LenderIntent;
     using IntentTypes for IntentTypes.BorrowerIntent;
 
     ILoanManager public immutable loanManager;
-    /// @notice Sole caller allowed for `onGatewayMint`. Mutable by governor.
-    address public gatewayMinter;
     IFeeManager public immutable feeManager;
     IPriceOracle public immutable priceOracle;
     ITokenAllowlist public immutable collateralTokenRegistry;
     ITokenAllowlist public immutable loanAssetRegistry;
 
-    mapping(address lender => mapping(address loanToken => uint256)) public pendingBalance;
     mapping(address authorizer => mapping(address authorized => bool)) public isAuthorized;
 
     mapping(bytes32 intentHash => uint256) public filledAmount;
@@ -58,8 +49,6 @@ contract IntentSettlement is EIP712, ReentrancyGuardTransient, Governable, IGate
     event IntentCancelled(bytes32 indexed intentHash, address indexed owner);
     event NonceInvalidated(address indexed owner, uint256 nonce);
     event AuthorizationSet(address indexed authorizer, address indexed authorized, bool value);
-    event GatewayDepositReceived(address indexed lender, address indexed loanToken, uint256 amount);
-    event GatewayMinterUpdated(address indexed oldMinter, address indexed newMinter);
     event Matched(
         bytes32 indexed lenderIntentHash,
         bytes32 indexed borrowerIntentHash,
@@ -67,52 +56,26 @@ contract IntentSettlement is EIP712, ReentrancyGuardTransient, Governable, IGate
         uint256 fillAmount,
         uint256 rate,
         address solver,
-        uint256 solverTip,
-        bool fundedViaGateway
+        uint256 solverTip
     );
 
-    modifier onlyGatewayMinter() {
-        require(msg.sender == gatewayMinter, "Not Gateway Minter");
-        _;
-    }
-
     constructor(
-        address _governor,
         address _loanManager,
-        address _gatewayMinter,
         address _feeManager,
         address _priceOracle,
         address _collateralTokenRegistry,
         address _loanAssetRegistry
-    ) EIP712("Pearcurve", "1") Governable(_governor) {
+    ) EIP712("Pearcurve", "1") {
         require(
-            _gatewayMinter != address(0) && _feeManager != address(0) && _priceOracle != address(0)
-                && _collateralTokenRegistry != address(0) && _loanAssetRegistry != address(0),
+            _feeManager != address(0) && _priceOracle != address(0) && _collateralTokenRegistry != address(0)
+                && _loanAssetRegistry != address(0),
             "Zero address"
         );
         loanManager = ILoanManager(_loanManager);
-        gatewayMinter = _gatewayMinter;
         feeManager = IFeeManager(_feeManager);
         priceOracle = IPriceOracle(_priceOracle);
         collateralTokenRegistry = ITokenAllowlist(_collateralTokenRegistry);
         loanAssetRegistry = ITokenAllowlist(_loanAssetRegistry);
-    }
-
-    /// @notice Rotates the address allowed to credit Path B `pendingBalance` via `onGatewayMint`.
-    function setGatewayMinter(address newMinter) external onlyGovernor {
-        require(newMinter != address(0), "Zero address");
-        address old = gatewayMinter;
-        gatewayMinter = newMinter;
-        emit GatewayMinterUpdated(old, newMinter);
-    }
-
-    // ═══════════════════ GATEWAY HOOK (Path B) ═══════════════════
-
-    /// @inheritdoc IGatewayHookReceiver
-    function onGatewayMint(address loanToken, uint256 amount, bytes calldata hookData) external onlyGatewayMinter {
-        address lender = abi.decode(hookData, (address));
-        pendingBalance[lender][loanToken] += amount;
-        emit GatewayDepositReceived(lender, loanToken, amount);
     }
 
     // ═══════════════════ AUTHORIZATION ═══════════════════
@@ -175,19 +138,7 @@ contract IntentSettlement is EIP712, ReentrancyGuardTransient, Governable, IGate
     }
 
     function _pullLenderFunds(address lender, address loanToken, uint256 amount) internal {
-        uint256 pending = pendingBalance[lender][loanToken];
-
-        if (pending >= amount) {
-            pendingBalance[lender][loanToken] = pending - amount;
-            IERC20(loanToken).safeTransfer(address(loanManager), amount);
-        } else if (pending > 0) {
-            pendingBalance[lender][loanToken] = 0;
-            uint256 remainder = amount - pending;
-            IERC20(loanToken).safeTransfer(address(loanManager), pending);
-            IERC20(loanToken).safeTransferFrom(lender, address(loanManager), remainder);
-        } else {
-            IERC20(loanToken).safeTransferFrom(lender, address(loanManager), amount);
-        }
+        IERC20(loanToken).safeTransferFrom(lender, address(loanManager), amount);
     }
 
     function _verifyIntent(bytes32 intentHash, address owner, bytes memory signature, uint256 expiry, uint256 nonce)
@@ -254,8 +205,6 @@ contract IntentSettlement is EIP712, ReentrancyGuardTransient, Governable, IGate
         address lender = p.lenderIntent.owner;
         address borrower = p.borrowerIntent.owner;
 
-        bool fundedViaGateway = pendingBalance[lender][p.lenderIntent.loanToken] > 0;
-
         _pullLenderFunds(lender, p.lenderIntent.loanToken, p.fillAmount);
 
         // Collateral, origination fee, and solver tip are all pulled from the borrower by
@@ -284,8 +233,7 @@ contract IntentSettlement is EIP712, ReentrancyGuardTransient, Governable, IGate
             p.fillAmount,
             p.agreedRate,
             msg.sender,
-            solverTip,
-            fundedViaGateway
+            solverTip
         );
     }
 }

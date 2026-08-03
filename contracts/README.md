@@ -2,7 +2,7 @@
 
 Foundry core for Pearcurve on Arc (Solidity 0.8.24, `via_ir`).
 
-`IntentSettlement` matching and `LoanManager` are ungated — no pause or upgrade proxy. Governance reaches oracles, allowlists, fee caps, and `IntentSettlement.setGatewayMinter` (Path B caller only).
+`IntentSettlement` matching and `LoanManager` are ungated — no pause or upgrade proxy. Governance reaches oracles, allowlists, and fee caps.
 
 ## Layout
 
@@ -29,8 +29,7 @@ From repo root: `npm run build:contracts` · `npm run test:contracts` · `npm ru
 
 ## Notes
 
-- **Path A:** lender `approve` + `transferFrom` at match. This is the only funding path that works against live Circle Gateway.
-- **Path B (`onGatewayMint` / `pendingBalance`):** future-proof hook. Only `gatewayMinter` may call it (`onlyGatewayMinter`); governance can rotate that address via `setGatewayMinter`. Circle’s published minter ([`Mints.sol`](https://github.com/circlefin/evm-gateway-contracts/blob/master/src/modules/minter/Mints.sol)) only does `mint(recipient, value)` — it never reads `hookData` or calls the recipient — so Path B is inactive against live Gateway today. Demo uses Path A (`GATEWAY_DEMO_PATH=pathA`); see [demo README](../demo/README.md).
+- **Lender funding:** approve (or EIP-2612 permit) + `transferFrom` at match. Cross-chain Gateway capital should mint to the lender wallet first, then use that path.
 - Liquidations use the **live** oracle (revert if stale).
 - Env: see [`.env.example`](../.env.example) (`DEPLOYER_PRIVATE_KEY`, Gateway/USDC/WETH, `FILL_AMOUNT`).
 - No secondary market in this build — lender is fixed at origination.

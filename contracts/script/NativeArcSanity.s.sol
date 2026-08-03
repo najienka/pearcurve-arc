@@ -17,7 +17,7 @@ import {MockChainlinkAggregator} from "../test/mocks/MockChainlinkAggregator.sol
 
 /// @title NativeArcSanity
 /// @notice Pre-Gateway Arc sanity: deploy oracle + protocol, then match lender/borrower intents
-///         natively on Arc (Path A - safeTransferFrom, no Gateway mint / pendingBalance).
+///         natively on Arc (lender approve + transferFrom).
 ///
 ///         Chainlink ETH/USD (Arc) from Chainlink's reference-data directory
 ///         (`feeds-arc-mainnet.json` / docs.chain.link price-feed addresses for Arc):
@@ -54,9 +54,6 @@ contract NativeArcSanity is Script {
 
     /// @dev Arc Testnet USDC (ERC-20 interface) - https://docs.arc.io/arc/references/contract-addresses
     address constant ARC_TESTNET_USDC = 0x3600000000000000000000000000000000000000;
-
-    /// @dev Arc Testnet GatewayMinter (wired but unused in this native Path-A run).
-    address constant ARC_GATEWAY_MINTER = 0x0022222ABE238Cc2C7Bb1f21003F0a260052475B;
 
     uint256 constant BPS = 10_000;
     uint256 constant ORIGINATION_LTV_BPS = 5_000;
@@ -149,9 +146,7 @@ contract NativeArcSanity is Script {
         address predictedSettlement = vm.computeCreateAddress(a.deployer, vm.getNonce(a.deployer) + 1);
         d.loanManager = new LoanManager(predictedSettlement, address(d.priceOracle), address(d.feeManager));
         d.settlement = new IntentSettlement(
-            a.deployer,
             address(d.loanManager),
-            ARC_GATEWAY_MINTER,
             address(d.feeManager),
             address(d.priceOracle),
             address(collateralRegistry),

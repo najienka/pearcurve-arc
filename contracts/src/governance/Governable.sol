@@ -2,9 +2,8 @@
 pragma solidity ^0.8.24;
 
 /// @title Governable
-/// @notice Two-step governance handover mixin used by periphery contracts and by
-///         IntentSettlement solely for rotating `gatewayMinter`. Matching / loan
-///         lifecycle remain ungated.
+/// @notice Two-step governance handover mixin used by periphery contracts
+///         (oracle, allowlists, fees). Matching / loan lifecycle remain ungated.
 abstract contract Governable {
     address public governor;
     address public pendingGovernor;

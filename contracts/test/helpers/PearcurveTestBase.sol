@@ -31,7 +31,6 @@ abstract contract PearcurveTestBase is Test {
     address internal solver;
     address internal governor;
     address internal feeRecipient;
-    address internal gatewayMinter;
 
     FeeManager internal feeManager;
     PriceOracle internal priceOracle;
@@ -58,7 +57,6 @@ abstract contract PearcurveTestBase is Test {
         solver = vm.addr(SOLVER_PK);
         governor = vm.addr(GOVERNOR_PK);
         feeRecipient = vm.addr(FEE_RECIPIENT_PK);
-        gatewayMinter = makeAddr("gatewayMinter");
 
         feeManager = new FeeManager(governor, feeRecipient);
         vm.startPrank(governor);
@@ -92,9 +90,7 @@ abstract contract PearcurveTestBase is Test {
         address predictedSettlement = vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1);
         loanManager = new LoanManager(predictedSettlement, address(priceOracle), address(feeManager));
         settlement = new IntentSettlement(
-            governor,
             address(loanManager),
-            gatewayMinter,
             address(feeManager),
             address(priceOracle),
             address(collateralRegistry),
