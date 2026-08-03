@@ -32,7 +32,7 @@ export async function matchIntents(params: {
   account: Account;
   intentSettlement: Address;
   match: MatchParamsInput;
-}): Promise<{ agreementId: bigint; txHash: Hex; fundedViaGateway: boolean }> {
+}): Promise<{ agreementId: bigint; txHash: Hex }> {
   const settlement = getContract({
     address: params.intentSettlement,
     abi: intentSettlementAbi,
@@ -57,7 +57,6 @@ export async function matchIntents(params: {
   const receipt = await waitForTransaction(params.publicClient, hash, "matchIntents");
 
   let agreementId = 0n;
-  let fundedViaGateway = false;
 
   for (const log of receipt.logs) {
     try {
@@ -67,17 +66,13 @@ export async function matchIntents(params: {
         topics: log.topics,
       });
       if (decoded.eventName === "Matched") {
-        const args = decoded.args as unknown as {
-          agreementId: bigint;
-          fundedViaGateway: boolean;
-        };
+        const args = decoded.args as unknown as { agreementId: bigint };
         agreementId = args.agreementId;
-        fundedViaGateway = args.fundedViaGateway;
       }
     } catch {
       // not our event
     }
   }
 
-  return { agreementId, txHash: hash, fundedViaGateway };
+  return { agreementId, txHash: hash };
 }

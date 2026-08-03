@@ -7,8 +7,7 @@
  * Domain: { name: "GatewayWallet", version: "1" }  (no chainId / verifyingContract)
  * Types:  BurnIntent(maxBlockHeight, maxFee, TransferSpec) + TransferSpec fields as bytes32-padded addresses
  *
- * NOTE: Circle's Gateway Minter does NOT call Pearcurve's onGatewayMint hook.
- * hookData is composition metadata only — mint always ERC-20-transfers to destinationRecipient.
+ * Mint always ERC-20-transfers to destinationRecipient; hookData is composition metadata only.
  */
 import { randomBytes } from "node:crypto";
 import { maxUint256, pad, zeroAddress, type Account, type Address, type Hex, type WalletClient } from "viem";

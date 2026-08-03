@@ -18,5 +18,5 @@
     }
   ],
   "_source": "https://developers.circle.com/gateway/howtos/transfer-unified-usdc-balance (gatewayMinterAbi)",
-  "_note": "Circle Gateway Minter does NOT call onGatewayMint. It mints USDC to TransferSpec.destinationRecipient via gatewayMint(attestation, signature)."
+  "_note": "Circle Gateway Minter mints USDC to TransferSpec.destinationRecipient via gatewayMint(attestation, signature)."
 }

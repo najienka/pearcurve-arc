@@ -4,12 +4,20 @@ Interactive CLI: Gateway deposit (Sepolia), mint on Arc, match, repay. Prompts b
 
 ABIs regenerate automatically on `npm run demo` (`forge build` + `scripts/export-abis.cjs`).
 
+## Lender vs solver
+
+**Lender on-chain work:** fund GatewayWallet on Sepolia only (approve + deposit).
+
+**Lender off-chain:** Pearcurve `LenderIntent`, Circle burn intent, EIP-2612 USDC permit.
+
+**Solver on Arc (pays USDC gas):** `gatewayMint`, submit `permit`, `matchIntents`.
+
 ## Phases
 
 1. Deposit USDC into Circle GatewayWallet (Sepolia)
 2. Sign Pearcurve `LenderIntent` + Circle Gateway burn intent
 3. Sign `BorrowerIntent`
-4. Attestation, `gatewayMint`, Path A approve, `matchIntents`
+4. Attestation, `gatewayMint`, lender permit (off-chain) → solver submits permit + `matchIntents`
 5. `LoanManager.repay`
 6. Reverse withdraw (Arc to Sepolia) — documented only
 
@@ -27,11 +35,6 @@ Required env (throws if missing): `ETH_RPC_URL`, Arc RPC/chain, lender/borrower/
 
 `COLLATERAL_AMOUNT` is optional — unset falls back to 0.001 WETH with a warning; set it explicitly for production demos.
 
-## Path A vs Path B
-
-- `GATEWAY_DEMO_PATH=pathA` (default) — mint to lender, approve, match
-- `pathB` — mint to settlement expecting `onGatewayMint`; **fails** (Circle never calls the hook)
-
-Pre-deposit into GatewayWallet is required. Wait ~65 Sepolia blocks after deposit before Phase 4. Arc gas is USDC.
+Gateway mints USDC to the lender on Arc; solver then submits permit + match. Pre-deposit into GatewayWallet is required. Wait ~65 Sepolia blocks after deposit before Phase 4. Arc gas is USDC (paid by solver for settlement steps).
 
 Circle docs: [transfer how-to](https://developers.circle.com/gateway/howtos/transfer-unified-usdc-balance) · [fees](https://developers.circle.com/gateway/references/fees) · [domains](https://developers.circle.com/gateway/references/supported-blockchains) (Sepolia `0`, Arc `26`)

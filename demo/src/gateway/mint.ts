@@ -6,7 +6,6 @@
  * Source: https://developers.circle.com/gateway/howtos/transfer-unified-usdc-balance
  *
  * Circle's minter mints USDC to TransferSpec.destinationRecipient.
- * It does NOT call IGatewayHookReceiver.onGatewayMint on Pearcurve contracts.
  */
 import {
   type Account,

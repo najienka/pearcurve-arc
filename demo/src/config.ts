@@ -115,14 +115,6 @@ export function loadConfig() {
        * Must leave room for Gateway fees deducted from unified balance.
        */
       fillAmount: BigInt(optionalEnv("FILL_AMOUNT") ?? "5000000"),
-      /**
-       * Path B (mint → IntentSettlement + onGatewayMint) is NOT supported by
-       * Circle's Gateway Minter — it ERC-20 mints to destinationRecipient and
-       * never calls onGatewayMint. Default `pathA` mints to the lender on Arc
-       * then uses approve + matchIntents. Set GATEWAY_DEMO_PATH=pathB to
-       * exercise the broken Path B shape and fail loudly after mint.
-       */
-      gatewayPath: (optionalEnv("GATEWAY_DEMO_PATH") ?? "pathA") as "pathA" | "pathB",
     },
   } as const;
 }

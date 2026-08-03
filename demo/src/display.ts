@@ -41,7 +41,6 @@ export function agreementSummary(p: {
   borrower: string;
   loanToken: string;
   collateralToken: string;
-  fundedViaGateway: boolean;
 }): void {
   const body = [
     `Agreement #${p.agreementId.toString()}`,
@@ -52,7 +51,6 @@ export function agreementSummary(p: {
     `Rate       ${p.agreedRate.toString()} bps`,
     `Loan       ${formatAddress(p.loanToken)}`,
     `Collateral ${formatAddress(p.collateralToken)}`,
-    `Gateway    ${p.fundedViaGateway ? "yes (pendingBalance)" : "no (Path A approve)"}`,
   ].join("\n");
 
   console.log(
@@ -63,17 +61,6 @@ export function agreementSummary(p: {
         padding: 1,
         borderColor: "green",
         borderStyle: "double",
-      }),
-  );
-}
-
-export function criticalGap(title: string, body: string): void {
-  console.log(
-    "\n" +
-      boxen(chalk.bold.red(title) + "\n\n" + chalk.white(body), {
-        padding: 1,
-        borderColor: "red",
-        borderStyle: "bold",
       }),
   );
 }

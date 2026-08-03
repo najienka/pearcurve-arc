@@ -6,7 +6,7 @@ import { type Address, type Hex, type PublicClient, parseAbi } from "viem";
 import type { OrderBook } from "./orderbook";
 
 const settlementEvents = parseAbi([
-  "event Matched(bytes32 indexed lenderIntentHash, bytes32 indexed borrowerIntentHash, uint256 indexed agreementId, uint256 fillAmount, uint256 rate, address solver, uint256 solverTip, bool fundedViaGateway)",
+  "event Matched(bytes32 indexed lenderIntentHash, bytes32 indexed borrowerIntentHash, uint256 indexed agreementId, uint256 fillAmount, uint256 rate, address solver, uint256 solverTip)",
   "event IntentCancelled(bytes32 indexed intentHash, address indexed owner)",
   "event NonceInvalidated(address indexed owner, uint256 nonce)",
 ]);

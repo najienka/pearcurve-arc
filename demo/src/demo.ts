@@ -4,40 +4,36 @@
  * Phases follow the product flow. Circle facts are pulled from developers.circle.com/gateway
  * — see config.ts CIRCLE_GATEWAY_NOTES and signing/gatewayIntent.ts.
  *
- * CRITICAL: Circle Gateway Minter does NOT invoke IntentSettlement.onGatewayMint.
- * Default GATEWAY_DEMO_PATH=pathA mints USDC to the lender on Arc, then Path A approve+match.
- * GATEWAY_DEMO_PATH=pathB mints to IntentSettlement (as in the pitch) and fails loudly when
- * pendingBalance stays zero.
+ * Flow: Gateway mints USDC to the lender on Arc. Lender funds Gateway on Sepolia
+ * and signs off-chain (intent, burn, EIP-2612 permit). Solver submits gatewayMint,
+ * permit, and matchIntents on Arc (pays Arc gas).
  */
 import {
   createPublicClient,
   createWalletClient,
-  encodeAbiParameters,
   getContract,
   http,
-  parseAbiParameters,
   type Chain,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
 
 import { loadConfig, CIRCLE_GATEWAY_NOTES } from "./config";
-import { phase, ok, warn, info, status, agreementSummary, criticalGap, fail } from "./display";
-import { formatUSDC, nowPlusSeconds, prompt } from "./utils";
+import { phase, ok, warn, info, status, agreementSummary, fail } from "./display";
+import { formatUSDC, nowPlusSeconds, prompt, waitForTransaction } from "./utils";
 import { signLenderIntent, signBorrowerIntent, type LenderIntent, type BorrowerIntent } from "./signing/pearcurveIntent";
 import { signGatewayBurnIntent } from "./signing/gatewayIntent";
+import { signErc20Permit } from "./signing/erc20Permit";
 import { requestAttestation, estimateTransfer } from "./gateway/attestation";
 import { gatewayMintOnArc } from "./gateway/mint";
 import { matchIntents } from "./solver/match";
 
 import erc20AbiJson from "./abis/ERC20.json";
 import gatewayWalletAbiJson from "./abis/GatewayWallet.json";
-import intentSettlementAbiJson from "./abis/IntentSettlement.json";
 import loanManagerAbiJson from "./abis/LoanManager.json";
 
 const erc20Abi = erc20AbiJson.abi;
 const gatewayWalletAbi = gatewayWalletAbiJson.abi;
-const intentSettlementAbi = intentSettlementAbiJson.abi;
 const loanManagerAbi = loanManagerAbiJson.abi;
 
 function arcChain(chainId: number, rpcUrl: string): Chain {
@@ -85,7 +81,7 @@ async function main() {
 
   info(`Circle: pre-deposit required = ${CIRCLE_GATEWAY_NOTES.preDepositRequired}`);
   info(`Circle fees paid in ${CIRCLE_GATEWAY_NOTES.feesPaidIn} (see ${CIRCLE_GATEWAY_NOTES.docs.fees})`);
-  info(`Demo Gateway path = ${cfg.demo.gatewayPath}`);
+  info("Gateway mint recipient = lender (then EIP-2612 permit + match)");
 
   // ─── PHASE 1 — Gateway Wallet deposit (Ethereum Sepolia) ───
   phase(1, "Lender deposits USDC into Circle Gateway Wallet (Ethereum Sepolia)");
@@ -173,15 +169,8 @@ async function main() {
   );
   ok("Signed Pearcurve LenderIntent");
 
-  const destinationRecipient =
-    cfg.demo.gatewayPath === "pathB"
-      ? cfg.contracts.intentSettlement
-      : lenderAccount.address;
-
-  const hookData =
-    cfg.demo.gatewayPath === "pathB"
-      ? encodeAbiParameters(parseAbiParameters("address"), [lenderAccount.address])
-      : ("0x" as const);
+  const destinationRecipient = lenderAccount.address;
+  const hookData = "0x" as const;
 
   // Estimate maxFee when possible; fall back to env / Ethereum gas fee buffer
   let maxFee = cfg.gateway.maxFeeOverride;
@@ -290,61 +279,44 @@ async function main() {
   });
   ok(`gatewayMint confirmed (${mintTx})`);
 
-  const settlement = getContract({
-    address: cfg.contracts.intentSettlement,
-    abi: intentSettlementAbi,
+  // Lender signs EIP-2612 permit off-chain; solver submits it (no Arc approve from lender)
+  const usdcArcRead = getContract({
+    address: cfg.arc.usdc,
+    abi: erc20Abi,
     client: arcPublic,
   });
-  const pending = (await settlement.read.pendingBalance([
-    lenderAccount.address,
-    cfg.arc.usdc,
-  ])) as bigint;
-  status("pendingBalance[lender][USDC]", formatUSDC(pending));
-
-  if (cfg.demo.gatewayPath === "pathB") {
-    if (pending < cfg.demo.fillAmount) {
-      criticalGap(
-        "Path B gap — Circle never calls onGatewayMint",
-        [
-          "Gateway Minter.gatewayMint mints USDC to destinationRecipient",
-          "via ERC-20 transfer.",
-          "It does NOT call IntentSettlement.onGatewayMint, so",
-          "pendingBalance stays 0.",
-          "hookData is composition metadata only (Circle technical",
-          "guide).",
-          "",
-          "Fix options:",
-          "  1) Redesign Path B (e.g. multicall mint+credit, or",
-          "     pull-pattern after mint).",
-          "  2) Use GATEWAY_DEMO_PATH=pathA (mint to lender ->",
-          "     approve -> match).",
-        ].join("\n"),
-      );
-      info(`Docs: ${CIRCLE_GATEWAY_NOTES.docs.transferHowTo}`);
-      throw new Error("Path B cannot complete with Circle's published Gateway Minter behavior.");
-    }
-  } else {
-    // Path A: lender approves IntentSettlement to pull Arc USDC
-    const usdcArc = getContract({
-      address: cfg.arc.usdc,
-      abi: erc20Abi,
-      client: { public: arcPublic, wallet: arcLenderWallet },
-    });
-    const arcBal = (await usdcArc.read.balanceOf([lenderAccount.address])) as bigint;
-    status("Lender Arc USDC", formatUSDC(arcBal));
-    if (arcBal < cfg.demo.fillAmount) {
-      throw new Error(
-        `Expected ≥ ${formatUSDC(cfg.demo.fillAmount)} USDC on Arc after mint; have ${formatUSDC(arcBal)}`,
-      );
-    }
-    await prompt("Press ENTER for lender to approve IntentSettlement (Path A)…");
-    const aHash = await usdcArc.write.approve(
-      [cfg.contracts.intentSettlement, cfg.demo.fillAmount],
-      { account: lenderAccount },
+  const arcBal = (await usdcArcRead.read.balanceOf([lenderAccount.address])) as bigint;
+  status("Lender Arc USDC", formatUSDC(arcBal));
+  if (arcBal < cfg.demo.fillAmount) {
+    throw new Error(
+      `Expected ≥ ${formatUSDC(cfg.demo.fillAmount)} USDC on Arc after mint; have ${formatUSDC(arcBal)}`,
     );
-    await arcPublic.waitForTransactionReceipt({ hash: aHash });
-    ok("Lender approved IntentSettlement");
   }
+
+  await prompt("Press ENTER for lender to sign USDC permit (off-chain)…");
+  const permit = await signErc20Permit({
+    publicClient: arcPublic,
+    walletClient: arcLenderWallet,
+    account: lenderAccount,
+    token: cfg.arc.usdc,
+    spender: cfg.contracts.intentSettlement,
+    value: cfg.demo.fillAmount,
+    chainId: cfg.arc.chainId,
+  });
+  ok("Lender signed EIP-2612 permit (no Arc gas)");
+
+  await prompt("Press ENTER for solver to submit permit on Arc…");
+  const usdcArcWrite = getContract({
+    address: cfg.arc.usdc,
+    abi: erc20Abi,
+    client: { public: arcPublic, wallet: arcSolverWallet },
+  });
+  const permitHash = await usdcArcWrite.write.permit(
+    [permit.owner, permit.spender, permit.value, permit.deadline, permit.v, permit.r, permit.s],
+    { account: solverAccount },
+  );
+  await waitForTransaction(arcPublic, permitHash, "USDC.permit");
+  ok("Solver submitted permit — IntentSettlement can pull lender USDC");
 
   // Borrower collateral approve
   const weth = getContract({
@@ -386,7 +358,6 @@ async function main() {
     borrower: borrowerAccount.address,
     loanToken: cfg.arc.usdc,
     collateralToken: cfg.arc.weth,
-    fundedViaGateway: result.fundedViaGateway,
   });
 
   await prompt();

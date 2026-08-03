@@ -26,7 +26,7 @@ const forgeArtifacts = {
   "ChainlinkFeedAdapter.sol/ChainlinkFeedAdapter.json": "ChainlinkFeedAdapter.json",
 };
 
-/** Minimal IERC20 surface used by the demo. */
+/** Minimal IERC20 + EIP-2612 surface used by the demo (Arc USDC supports permit). */
 const ERC20_ABI = [
   {
     type: "function",
@@ -61,6 +61,42 @@ const ERC20_ABI = [
     inputs: [],
     outputs: [{ type: "uint8" }],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "name",
+    inputs: [],
+    outputs: [{ type: "string" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "version",
+    inputs: [],
+    outputs: [{ type: "string" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "nonces",
+    inputs: [{ name: "owner", type: "address" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "permit",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+      { name: "value", type: "uint256" },
+      { name: "deadline", type: "uint256" },
+      { name: "v", type: "uint8" },
+      { name: "r", type: "bytes32" },
+      { name: "s", type: "bytes32" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
     type: "function",
@@ -104,7 +140,7 @@ const GATEWAY_MINTER = {
   _source:
     "https://developers.circle.com/gateway/howtos/transfer-unified-usdc-balance (gatewayMinterAbi)",
   _note:
-    "Circle Gateway Minter does NOT call onGatewayMint. It mints USDC to TransferSpec.destinationRecipient via gatewayMint(attestation, signature).",
+    "Circle Gateway Minter mints USDC to TransferSpec.destinationRecipient via gatewayMint(attestation, signature).",
 };
 
 /**
