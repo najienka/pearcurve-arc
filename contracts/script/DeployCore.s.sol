@@ -78,9 +78,7 @@ contract DeployCore is Script {
         address predictedSettlement = vm.computeCreateAddress(governor, vm.getNonce(governor) + 1);
         d.loanManager = address(new LoanManager(predictedSettlement, d.priceOracle, d.feeManager));
         d.settlement = address(
-            new IntentSettlement(
-                d.loanManager, d.feeManager, d.priceOracle, d.collateralRegistry, d.loanRegistry
-            )
+            new IntentSettlement(d.loanManager, d.feeManager, d.priceOracle, d.collateralRegistry, d.loanRegistry)
         );
         require(d.settlement == predictedSettlement, "Settlement address mismatch");
         console2.log("LoanManager      ", d.loanManager);
