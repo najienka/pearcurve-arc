@@ -129,6 +129,10 @@ contract LoanManager {
         IERC20(loanToken).safeTransfer(borrower, principal);
 
         emit AgreementCreated(agreementId, lender, borrower, principal, rateBps, block.timestamp + duration);
+
+        // TODO: no post-origination callback support yet (see IntentSettlement._settle).
+        // Same caveat applies if we add one: try/catch or gas cap so a misbehaving
+        // lender/borrower contract can't block origination.
     }
 
     // ═══════════════════ REPAY ═══════════════════
@@ -158,6 +162,10 @@ contract LoanManager {
         IERC20(a.collateralToken).safeTransfer(a.borrower, a.collateralAmount);
 
         emit LoanRepaid(agreementId, totalOwed, isEarly);
+
+        // TODO: no post-repayment callback support yet (see IntentSettlement._settle).
+        // A lender contract watching for repayment currently has to poll/subscribe to
+        // LoanRepaid rather than being notified directly.
     }
 
     // ═══════════════════ LIQUIDATE (in-term, oracle-based) ═══════════
@@ -192,6 +200,9 @@ contract LoanManager {
         }
 
         emit LoanLiquidated(agreementId, msg.sender, seizeAmount);
+
+        // TODO: no post-liquidation callback support yet (see IntentSettlement._settle).
+        // Same caveat: try/catch or gas cap if we ever notify lender/borrower here.
     }
 
     // ═══════════════════ SEIZE DEFAULTED (post-maturity, oracle-based) ═══
@@ -219,6 +230,9 @@ contract LoanManager {
         }
 
         emit CollateralSeized(agreementId, msg.sender, seizeAmount, returnToBorrower);
+
+        // TODO: no post-seizure callback support yet (see IntentSettlement._settle).
+        // Same caveat: try/catch or gas cap if we ever notify lender/borrower here.
     }
 
     // ═══════════════════ INTERNAL ═══════════════════
