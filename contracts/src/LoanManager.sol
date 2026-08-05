@@ -130,9 +130,10 @@ contract LoanManager {
 
         emit AgreementCreated(agreementId, lender, borrower, principal, rateBps, block.timestamp + duration);
 
-        // TODO: no post-origination callback support yet (see IntentSettlement._settle).
-        // Same caveat applies if we add one: try/catch or gas cap so a misbehaving
-        // lender/borrower contract can't block origination.
+        // TODO: no post-origination callback support yet — settlement is pull-only (see README).
+        // originate() is the sole entry point (onlySettlement), so a callback added here would
+        // also cover the IntentSettlement.matchIntents() flow. Guard with try/catch or a gas cap
+        // so a misbehaving lender/borrower contract can't block origination.
     }
 
     // ═══════════════════ REPAY ═══════════════════

@@ -235,9 +235,5 @@ contract IntentSettlement is EIP712, ReentrancyGuardTransient {
             msg.sender,
             solverTip
         );
-
-        // TODO: no post-fill callback support yet — settlement is pull-only (see README).
-        // If we add a push path (e.g. notifying lender/borrower contracts after origination),
-        // guard it with a try/catch or gas cap so a misbehaving callback can't block settlement.
     }
 }
